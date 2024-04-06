@@ -1,10 +1,11 @@
 mod common;
 mod layouts;
 
-use crate::common::{Picture, Scheme};
-use crate::layouts::Rhombus;
+use crate::common::{Format, Scheme};
+use crate::layouts::{Layout, Picture};
 use clap::{arg, command, Parser, Subcommand};
 use clap_verbosity_flag::{Verbosity, WarnLevel};
+use image::{ImageBuffer, Rgba};
 use log::{debug, info, trace};
 use num_bigint::BigUint;
 use num_traits::Zero;
@@ -28,16 +29,23 @@ enum Commands {
     /// Generate color scheme image for a given substance.
     Generate {
         substance: String,
+        #[arg(default_value_t = 200, long)]
+        base_size: u16,
+        #[arg(long, value_enum, default_value_t)]
+        /// Layout of the image.
+        layout: Layout,
+        /// Print image to terminal.
         #[arg(long, default_value = "false")]
         print: bool,
-        #[arg(default_value_t = 200, long)]
-        size: u16,
-        #[arg(long, value_enum, default_value_t)]
-        layout: Layout,
-        #[arg(long, default_value = "true")]
+        #[arg(long, default_value = "false")]
+        /// Print image to terminal only, without saving.
         print_only: bool,
         #[arg(long, default_value = "output.png")]
+        /// Output filename.
         filename: String,
+        #[arg(long, default_value = "1")]
+        /// Border size in percent points of base size.
+        border_size: u32,
     },
     /// Calculate and print color scheme without generating image.
     Calculate {
@@ -48,23 +56,6 @@ enum Commands {
         /// Read substances from file, one per line. Works if no arguments are passed.
         from_file: Option<String>,
     },
-}
-
-#[derive(clap::ValueEnum, Clone, Default, Debug)]
-enum Layout {
-    #[default]
-    Quinqunx,
-    Rhombus,
-    Stripe,
-}
-
-#[derive(clap::ValueEnum, Clone, Default, Debug)]
-enum Format {
-    #[default]
-    Table,
-    Json,
-    Yaml,
-    Csv,
 }
 
 pub fn modulo(divident: &BigUint, divisor: u32) -> u32 {
@@ -98,38 +89,41 @@ fn generate_scheme(substance: String) -> Scheme {
     let first_accent_hue = first_accent_hue % 360;
     let second_accent_hue = second_accent_hue % 360;
 
-    Scheme::new(
+    let scheme = Scheme::new(
         primary_hue,
         first_accent_hue,
         second_accent_hue,
         complementary_hue,
-    )
-}
-
-fn generate_for_inchi(substance: String, layout: &Layout, size: u16) -> Rhombus {
-    let scheme = generate_scheme(substance[6..].to_string());
+    );
     info!("Primary hue: {}", scheme.primary.hue);
     info!("Complementary hue: {}", scheme.complementary.hue);
     info!("Second accent hue: {}", scheme.second_accent.hue);
     info!("First accent hue: {}", scheme.first_accent.hue);
-
-    Rhombus::new(size as u32, scheme)
+    scheme
 }
 
-fn print_to_terminal(picture: &Rhombus) {
-    let imgbuf = picture.generate();
-    let img = image::DynamicImage::ImageRgba8(imgbuf);
+fn generate_for_inchi(substance: String, mut picture: Picture) -> Picture {
+    let scheme = generate_scheme(substance[6..].to_string());
+
+    picture.add_scheme(scheme);
+    picture
+}
+
+fn print_to_terminal(buffer: ImageBuffer<Rgba<u8>, Vec<u8>>) {
+    let height = buffer.height();
+    let img = image::DynamicImage::ImageRgba8(buffer);
     let conf = Config {
         // set offset
         x: 10,
-        y: picture.get_height() as i16,
+        y: height as i16,
         ..Default::default()
     };
     viuer::print(&img, &conf).expect("Image printing failed.");
 }
 
-fn generate_for_minchi(substance: String, layout: &Layout, size: u16) {
+fn generate_for_minchi(substance: String, mut picture: Picture) -> Picture {
     println!("MInChI is not supported yet.");
+    picture
 }
 
 fn main() {
@@ -142,26 +136,42 @@ fn main() {
     match &cli.command {
         Commands::Generate {
             substance,
+            base_size,
             layout,
-            size,
             print,
             print_only,
             filename,
+            border_size,
         } => {
             debug!("Layout: {:?}", layout);
             debug!("Print: {}", print);
+            debug!("Print only: {}", print_only);
+
+            let mut actual_b_size = (*base_size as f32 * *border_size as f32 / 100.0) as u32;
+            if actual_b_size % 2 == 0 {
+                actual_b_size += 1;
+            }
+            debug!("Border size: {}", actual_b_size);
+            let actual_size: u16;
+            if base_size % 2 == 0 {
+                actual_size = *base_size + 1;
+            } else {
+                actual_size = *base_size;
+            }
+
+            let mut picture = Picture::new(actual_size as u32, layout.clone(), actual_b_size);
+
             if substance.starts_with("InChI=") {
-                let pic = generate_for_inchi(substance.to_string(), layout, size.clone());
+                let buffer = generate_for_inchi(substance.to_string(), picture).generate();
                 if *print || *print_only {
-                    print_to_terminal(&pic);
+                    print_to_terminal(buffer.clone());
                 }
                 if !*print_only {
-                    let imgbuf = pic.generate();
-                    imgbuf.save(filename).unwrap();
+                    buffer.save(filename).unwrap();
                     println!("Image saved as {}", filename);
                 }
             } else if substance.starts_with("MInChI=") {
-                generate_for_minchi(substance.to_string(), layout, size.clone());
+                generate_for_minchi(substance.to_string(), picture);
             } else if substance.starts_with("InChIKey=") || substance.starts_with("MInChIKey=") {
                 eprintln!("Keys are not supported. Check readme for more info.");
                 std::process::exit(exitcode::USAGE);

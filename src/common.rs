@@ -40,8 +40,11 @@ impl Scheme {
     }
 }
 
-pub trait Picture {
-    fn new(size: u32, scheme: Scheme) -> Self;
-    fn generate(&self) -> ImageBuffer<Rgba<u8>, Vec<u8>>;
-    fn get_height(&self) -> u32;
+#[derive(clap::ValueEnum, Clone, Default, Debug)]
+pub enum Format {
+    #[default]
+    Table,
+    Json,
+    Yaml,
+    Csv,
 }
