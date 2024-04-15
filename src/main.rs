@@ -2,7 +2,7 @@ mod common;
 mod layouts;
 
 use crate::common::{Format, Scheme};
-use crate::layouts::{Layout, Picture};
+use crate::layouts::Picture;
 use clap::{arg, command, Parser, Subcommand};
 use clap_verbosity_flag::{Verbosity, WarnLevel};
 use image::{ImageBuffer, Rgba};
@@ -31,9 +31,6 @@ enum Commands {
         substance: String,
         #[arg(default_value_t = 200, long)]
         base_size: u16,
-        #[arg(long, value_enum, default_value_t)]
-        /// Layout of the image.
-        layout: Layout,
         /// Print image to terminal.
         #[arg(long, default_value = "false")]
         print: bool,
@@ -137,13 +134,11 @@ fn main() {
         Commands::Generate {
             substance,
             base_size,
-            layout,
             print,
             print_only,
             filename,
             border_size,
         } => {
-            debug!("Layout: {:?}", layout);
             debug!("Print: {}", print);
             debug!("Print only: {}", print_only);
 
@@ -159,7 +154,7 @@ fn main() {
                 actual_size = *base_size;
             }
 
-            let mut picture = Picture::new(actual_size as u32, layout.clone(), actual_b_size);
+            let mut picture = Picture::new(actual_size as u32, actual_b_size);
 
             if substance.starts_with("InChI=") {
                 let buffer = generate_for_inchi(substance.to_string(), picture).generate();

@@ -3,26 +3,16 @@ use image::{ImageBuffer, Rgba};
 use log::trace;
 use palette::{FromColor, Hsv, Srgb};
 
-#[derive(clap::ValueEnum, Clone, Default, Debug)]
-pub enum Layout {
-    #[default]
-    Quinqunx,
-    Rhombus,
-    Stripe,
-}
-
 pub struct Picture {
     base_size: u32,
-    layout: Layout,
     border_size: u32,
     schemes: Vec<Scheme>,
 }
 
 impl Picture {
-    pub fn new(base_size: u32, layout: Layout, border_size: u32) -> Self {
+    pub fn new(base_size: u32, border_size: u32) -> Self {
         Self {
             base_size,
-            layout,
             border_size,
             schemes: Vec::new(),
         }
@@ -170,18 +160,20 @@ struct Rectangle {
 impl Rectangle {
     fn pixel_belongs(&self, x: u32, y: u32) -> bool {
         match self.orientation {
-            Orientation::Horizontal => self.pixel_belongs_horizontal(x, y),
-            Orientation::Vertical => self.pixel_belongs_vertical(x, y),
+            Orientation::Horizontal => self.pixel_belongs_in_horizontal(x, y),
+            Orientation::Vertical => self.pixel_belongs_in_vertical(x, y),
         }
     }
 
-    fn pixel_belongs_horizontal(&self, x: u32, y: u32) -> bool {
+    fn pixel_belongs_in_horizontal(&self, x: u32, y: u32) -> bool {
         let distance_from_x = abs(self.x, x);
         let distance_from_y = abs(self.y, y);
-        distance_from_x < self.width / 2 && distance_from_y < self.height / 2
+
+        let line = (self.width - 1) / 2;
+        distance_from_x <= line && distance_from_y <= line
     }
 
-    fn pixel_belongs_vertical(&self, x: u32, y: u32) -> bool {
+    fn pixel_belongs_in_vertical(&self, x: u32, y: u32) -> bool {
         let distance_from_x = abs(self.x, x);
         let distance_from_y = abs(self.y, y);
 
@@ -237,8 +229,20 @@ impl Shape for Line {
 
         let max_width = buffer.width() as i32;
         let max_height = buffer.height() as i32;
-        for x in x1..x2 + 1 {
-            let y = y1 + (y2 - y1) * (x - x1) / (x2 - x1);
+
+        let mut pixels = Vec::new();
+        if x1 == x2 {
+            for y in y1..y2 + 1 {
+                pixels.push((x1, y));
+            }
+        } else {
+            for x in x1..x2 + 1 {
+                let y = y1 + (y2 - y1) * (x - x1) / (x2 - x1);
+                pixels.push((x, y));
+            }
+        }
+
+        for (x, y) in pixels {
             for i in -half_border..half_border + 1 {
                 for j in -half_border..half_border + 1 {
                     if x + i < max_width && y + j < max_height && x + i >= 0 && y + j >= 0 {
