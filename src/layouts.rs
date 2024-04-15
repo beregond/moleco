@@ -1,7 +1,7 @@
 use crate::common::Scheme;
 use image::{ImageBuffer, Rgba};
 use log::trace;
-use palette::{FromColor, Hsv, Srgb};
+use palette::{FromColor, Hsv, Srgb, Srgba};
 
 pub struct Picture {
     base_size: u32,
@@ -23,7 +23,8 @@ impl Picture {
     }
 
     pub fn generate(&self) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
-        let border_color: Srgb<u8> = Srgb::from_color(Hsv::new(0.0, 0.0, 0.1)).into_format();
+        let border_color: Srgba<u8> = Srgba::from_color(Hsv::new(0.0, 0.0, 0.1)).into_format();
+        let eraser = Srgba::new(0, 0, 0, 0);
         let size = self.base_size * 2 + self.border_size * 3;
         let half_border = (self.border_size - 1) / 2;
         let half_size = (self.base_size - 1) / 2;
@@ -42,7 +43,7 @@ impl Picture {
             width: self.base_size,
             height: self.base_size,
             orientation: Orientation::Vertical,
-            color: primary,
+            color: primary.into(),
         }));
         layer0.push(ShapeType::Rectangle(Rectangle {
             x: half_size + self.border_size,
@@ -50,7 +51,7 @@ impl Picture {
             width: self.base_size,
             height: self.base_size,
             orientation: Orientation::Vertical,
-            color: first_accent,
+            color: first_accent.into(),
         }));
         layer0.push(ShapeType::Rectangle(Rectangle {
             x: self.base_size + half_size + self.border_size * 2,
@@ -58,7 +59,7 @@ impl Picture {
             width: self.base_size,
             height: self.base_size,
             orientation: Orientation::Vertical,
-            color: second_accent,
+            color: second_accent.into(),
         }));
         layer0.push(ShapeType::Rectangle(Rectangle {
             x: self.base_size + self.border_size + half_border,
@@ -66,7 +67,7 @@ impl Picture {
             width: self.base_size,
             height: self.base_size,
             orientation: Orientation::Vertical,
-            color: complementary,
+            color: complementary.into(),
         }));
         layers.push(layer0);
 
@@ -154,7 +155,7 @@ struct Rectangle {
     width: u32,
     height: u32,
     orientation: Orientation,
-    color: Srgb<u8>,
+    color: Srgba<u8>,
 }
 
 impl Rectangle {
@@ -196,7 +197,12 @@ impl Shape for Rectangle {
                     buffer.put_pixel(
                         x,
                         y,
-                        Rgba([self.color.red, self.color.green, self.color.blue, 255u8]),
+                        Rgba([
+                            self.color.red,
+                            self.color.green,
+                            self.color.blue,
+                            self.color.alpha,
+                        ]),
                     );
                 }
             }
@@ -214,7 +220,7 @@ struct Line {
     x2: u32,
     y2: u32,
     border_size: u32,
-    color: Srgb<u8>,
+    color: Srgba<u8>,
 }
 
 impl Shape for Line {
@@ -249,7 +255,12 @@ impl Shape for Line {
                         buffer.put_pixel(
                             (x + i) as u32,
                             (y + j) as u32,
-                            Rgba([self.color.red, self.color.green, self.color.blue, 255u8]),
+                            Rgba([
+                                self.color.red,
+                                self.color.green,
+                                self.color.blue,
+                                self.color.alpha,
+                            ]),
                         );
                     }
                 }
