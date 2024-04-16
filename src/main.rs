@@ -118,7 +118,7 @@ fn print_to_terminal(buffer: ImageBuffer<Rgba<u8>, Vec<u8>>) {
     viuer::print(&img, &conf).expect("Image printing failed.");
 }
 
-fn generate_for_minchi(substance: String, mut picture: Picture) -> Picture {
+fn generate_for_minchi(substance: String, picture: Picture) -> Picture {
     println!("MInChI is not supported yet.");
     picture
 }
@@ -142,6 +142,11 @@ fn main() {
             debug!("Print: {}", print);
             debug!("Print only: {}", print_only);
 
+            if *base_size < 16 {
+                eprintln!("Base size must be bigger than 16 pixels.");
+                std::process::exit(exitcode::USAGE);
+            }
+
             let mut actual_b_size = (*base_size as f32 * *border_size as f32 / 100.0) as u32;
             if actual_b_size % 2 == 0 {
                 actual_b_size += 1;
@@ -154,7 +159,7 @@ fn main() {
                 actual_size = *base_size;
             }
 
-            let mut picture = Picture::new(actual_size as u32, actual_b_size);
+            let picture = Picture::new(actual_size as u32, actual_b_size);
 
             if substance.starts_with("InChI=") {
                 let buffer = generate_for_inchi(substance.to_string(), picture).generate();

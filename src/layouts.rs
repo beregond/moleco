@@ -1,7 +1,6 @@
 use crate::common::Scheme;
 use image::{ImageBuffer, Rgba};
-use log::trace;
-use palette::{FromColor, Hsv, Srgb, Srgba};
+use palette::{FromColor, Hsv, Srgba};
 
 pub struct Picture {
     base_size: u32,
@@ -28,16 +27,18 @@ impl Picture {
         let size = self.base_size * 2 + self.border_size * 3;
         let half_border = (self.border_size - 1) / 2;
         let half_size = (self.base_size - 1) / 2;
+        let quarter_size = (half_size - 1) / 2;
+        let eight_size = (quarter_size - 1) / 2;
         let mut buffer = ImageBuffer::new(size, size);
         let primary = self.schemes[0].primary.srgb;
         let first_accent = self.schemes[0].first_accent.srgb;
         let second_accent = self.schemes[0].second_accent.srgb;
         let complementary = self.schemes[0].complementary.srgb;
 
-        let mut layer0: Vec<ShapeType> = Vec::new();
         let mut layers: Vec<Vec<ShapeType>> = Vec::new();
+        let mut base_color: Vec<ShapeType> = Vec::new();
 
-        layer0.push(ShapeType::Rectangle(Rectangle {
+        base_color.push(ShapeType::Rectangle(Rectangle {
             x: self.base_size + self.border_size + half_border,
             y: half_size + self.border_size,
             width: self.base_size,
@@ -45,7 +46,7 @@ impl Picture {
             orientation: Orientation::Vertical,
             color: primary.into(),
         }));
-        layer0.push(ShapeType::Rectangle(Rectangle {
+        base_color.push(ShapeType::Rectangle(Rectangle {
             x: half_size + self.border_size,
             y: self.base_size + self.border_size + half_border,
             width: self.base_size,
@@ -53,7 +54,7 @@ impl Picture {
             orientation: Orientation::Vertical,
             color: first_accent.into(),
         }));
-        layer0.push(ShapeType::Rectangle(Rectangle {
+        base_color.push(ShapeType::Rectangle(Rectangle {
             x: self.base_size + half_size + self.border_size * 2,
             y: self.base_size + self.border_size + half_border,
             width: self.base_size,
@@ -61,7 +62,7 @@ impl Picture {
             orientation: Orientation::Vertical,
             color: second_accent.into(),
         }));
-        layer0.push(ShapeType::Rectangle(Rectangle {
+        base_color.push(ShapeType::Rectangle(Rectangle {
             x: self.base_size + self.border_size + half_border,
             y: self.base_size + half_size + self.border_size * 2,
             width: self.base_size,
@@ -69,10 +70,11 @@ impl Picture {
             orientation: Orientation::Vertical,
             color: complementary.into(),
         }));
-        layers.push(layer0);
+        layers.push(base_color);
 
-        let mut layer1: Vec<ShapeType> = Vec::new();
-        layer1.push(ShapeType::Line(Line {
+        let mut base_lines: Vec<ShapeType> = Vec::new();
+        // Cross - left top to right bottom
+        base_lines.push(ShapeType::Line(Line {
             x1: half_size + self.border_size,
             y1: half_size + self.border_size,
             x2: self.base_size + half_size + self.border_size * 2,
@@ -80,7 +82,8 @@ impl Picture {
             border_size: self.border_size,
             color: border_color,
         }));
-        layer1.push(ShapeType::Line(Line {
+        // Cross - left bottom to right top
+        base_lines.push(ShapeType::Line(Line {
             x1: half_size + self.border_size,
             y1: self.base_size + half_size + self.border_size * 2,
             x2: self.base_size + half_size + self.border_size * 2,
@@ -88,7 +91,7 @@ impl Picture {
             border_size: self.border_size,
             color: border_color,
         }));
-        layer1.push(ShapeType::Line(Line {
+        base_lines.push(ShapeType::Line(Line {
             x1: half_border,
             y1: self.base_size + self.border_size + half_border,
             x2: self.base_size + self.border_size + half_border,
@@ -96,7 +99,7 @@ impl Picture {
             border_size: self.border_size,
             color: border_color,
         }));
-        layer1.push(ShapeType::Line(Line {
+        base_lines.push(ShapeType::Line(Line {
             x1: self.base_size + self.border_size + half_border,
             y1: half_border,
             x2: self.base_size * 2 + self.border_size * 2 + half_border,
@@ -104,7 +107,7 @@ impl Picture {
             border_size: self.border_size,
             color: border_color,
         }));
-        layer1.push(ShapeType::Line(Line {
+        base_lines.push(ShapeType::Line(Line {
             x1: self.base_size * 2 + self.border_size * 2 + half_border,
             y1: self.base_size + self.border_size + half_border,
             x2: self.base_size + self.border_size + half_border,
@@ -112,7 +115,7 @@ impl Picture {
             border_size: self.border_size,
             color: border_color,
         }));
-        layer1.push(ShapeType::Line(Line {
+        base_lines.push(ShapeType::Line(Line {
             x1: half_border,
             y1: self.base_size + self.border_size + half_border,
             x2: self.base_size + self.border_size + half_border,
@@ -120,7 +123,164 @@ impl Picture {
             border_size: self.border_size,
             color: border_color,
         }));
-        layers.push(layer1);
+        layers.push(base_lines);
+
+        let mut cutouts: Vec<ShapeType> = Vec::new();
+        // Central cutout
+        cutouts.push(ShapeType::Rectangle(Rectangle {
+            x: self.base_size + self.border_size + half_border,
+            y: self.base_size + self.border_size + half_border,
+            width: quarter_size,
+            height: quarter_size,
+            orientation: Orientation::Horizontal,
+            color: eraser,
+        }));
+        // Left top cutout
+        cutouts.push(ShapeType::Rectangle(Rectangle {
+            x: half_size + self.border_size,
+            y: half_size + self.border_size,
+            width: quarter_size,
+            height: quarter_size,
+            orientation: Orientation::Horizontal,
+            color: eraser,
+        }));
+        // Right bottom cutout
+        cutouts.push(ShapeType::Rectangle(Rectangle {
+            x: self.base_size + half_size + self.border_size * 2,
+            y: self.base_size + half_size + self.border_size * 2,
+            width: quarter_size,
+            height: quarter_size,
+            orientation: Orientation::Horizontal,
+            color: eraser,
+        }));
+        // Left bottom cutout
+        cutouts.push(ShapeType::Rectangle(Rectangle {
+            x: half_size + self.border_size,
+            y: self.base_size + half_size + self.border_size * 2,
+            width: quarter_size,
+            height: quarter_size,
+            orientation: Orientation::Horizontal,
+            color: eraser,
+        }));
+        // Right top cutout
+        cutouts.push(ShapeType::Rectangle(Rectangle {
+            x: self.base_size + half_size + self.border_size * 2,
+            y: half_size + self.border_size,
+            width: quarter_size,
+            height: quarter_size,
+            orientation: Orientation::Horizontal,
+            color: eraser,
+        }));
+
+        layers.push(cutouts);
+        let mut inner_border: Vec<ShapeType> = Vec::new();
+        // Left top cutout borders
+        inner_border.push(ShapeType::Line(Line {
+            x1: half_size + self.border_size + eight_size,
+            y1: half_size + self.border_size - eight_size,
+            x2: half_size + self.border_size + eight_size,
+            y2: half_size + self.border_size + eight_size,
+            border_size: self.border_size,
+            color: border_color,
+        }));
+        inner_border.push(ShapeType::Line(Line {
+            x1: half_size + self.border_size - eight_size,
+            y1: half_size + self.border_size + eight_size,
+            x2: half_size + self.border_size + eight_size,
+            y2: half_size + self.border_size + eight_size,
+            border_size: self.border_size,
+            color: border_color,
+        }));
+
+        // Right bottom cutout borders
+        inner_border.push(ShapeType::Line(Line {
+            x1: self.base_size + half_size + self.border_size * 2 - eight_size,
+            y1: self.base_size + half_size + self.border_size * 2 - eight_size,
+            x2: self.base_size + half_size + self.border_size * 2 + eight_size,
+            y2: self.base_size + half_size + self.border_size * 2 - eight_size,
+            border_size: self.border_size,
+            color: border_color,
+        }));
+        inner_border.push(ShapeType::Line(Line {
+            x1: self.base_size + half_size + self.border_size * 2 - eight_size,
+            y1: self.base_size + half_size + self.border_size * 2 - eight_size,
+            x2: self.base_size + half_size + self.border_size * 2 - eight_size,
+            y2: self.base_size + half_size + self.border_size * 2 + eight_size,
+            border_size: self.border_size,
+            color: border_color,
+        }));
+
+        // Left bottom cutout borders
+        inner_border.push(ShapeType::Line(Line {
+            x1: half_size + self.border_size - eight_size,
+            y1: self.base_size + half_size + self.border_size * 2 - eight_size,
+            x2: half_size + self.border_size + eight_size,
+            y2: self.base_size + half_size + self.border_size * 2 - eight_size,
+            border_size: self.border_size,
+            color: border_color,
+        }));
+        inner_border.push(ShapeType::Line(Line {
+            x1: half_size + self.border_size + eight_size,
+            y1: self.base_size + half_size + self.border_size * 2 - eight_size,
+            x2: half_size + self.border_size + eight_size,
+            y2: self.base_size + half_size + self.border_size * 2 + eight_size,
+            border_size: self.border_size,
+            color: border_color,
+        }));
+
+        // Right top cutout borders
+        inner_border.push(ShapeType::Line(Line {
+            x1: self.base_size + half_size + self.border_size * 2 - eight_size,
+            y1: half_size + self.border_size - eight_size,
+            x2: self.base_size + half_size + self.border_size * 2 - eight_size,
+            y2: half_size + self.border_size + eight_size,
+            border_size: self.border_size,
+            color: border_color,
+        }));
+        inner_border.push(ShapeType::Line(Line {
+            x1: self.base_size + half_size + self.border_size * 2 - eight_size,
+            y1: half_size + self.border_size + eight_size,
+            x2: self.base_size + half_size + self.border_size * 2 + eight_size,
+            y2: half_size + self.border_size + eight_size,
+            border_size: self.border_size,
+            color: border_color,
+        }));
+
+        // Central cutout borders
+        inner_border.push(ShapeType::Line(Line {
+            x1: self.base_size + self.border_size + half_border - eight_size,
+            y1: self.base_size + self.border_size + half_border - eight_size,
+            x2: self.base_size + self.border_size + half_border + eight_size,
+            y2: self.base_size + self.border_size + half_border - eight_size,
+            border_size: self.border_size,
+            color: border_color,
+        }));
+        inner_border.push(ShapeType::Line(Line {
+            x1: self.base_size + self.border_size + half_border - eight_size,
+            y1: self.base_size + self.border_size + half_border - eight_size,
+            x2: self.base_size + self.border_size + half_border - eight_size,
+            y2: self.base_size + self.border_size + half_border + eight_size,
+            border_size: self.border_size,
+            color: border_color,
+        }));
+        inner_border.push(ShapeType::Line(Line {
+            x1: self.base_size + self.border_size + half_border - eight_size,
+            y1: self.base_size + self.border_size + half_border + eight_size,
+            x2: self.base_size + self.border_size + half_border + eight_size,
+            y2: self.base_size + self.border_size + half_border + eight_size,
+            border_size: self.border_size,
+            color: border_color,
+        }));
+        inner_border.push(ShapeType::Line(Line {
+            x1: self.base_size + self.border_size + half_border + eight_size,
+            y1: self.base_size + self.border_size + half_border - eight_size,
+            x2: self.base_size + self.border_size + half_border + eight_size,
+            y2: self.base_size + self.border_size + half_border + eight_size,
+            border_size: self.border_size,
+            color: border_color,
+        }));
+
+        layers.push(inner_border);
 
         for layer in &layers {
             for shape in layer {

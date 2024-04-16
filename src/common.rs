@@ -1,4 +1,3 @@
-use image::{ImageBuffer, Rgba};
 use palette::{FromColor, Hsv, Srgb};
 
 pub struct Color {
