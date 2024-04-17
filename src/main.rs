@@ -118,8 +118,24 @@ fn print_to_terminal(buffer: ImageBuffer<Rgba<u8>, Vec<u8>>) {
     viuer::print(&img, &conf).expect("Image printing failed.");
 }
 
-fn generate_for_minchi(substance: String, picture: Picture) -> Picture {
-    println!("MInChI is not supported yet.");
+fn generate_for_minchi(substance: String, mut picture: Picture) -> Picture {
+    let mut chunks: Vec<&str> = substance.split('/').collect();
+    if chunks.len() < 4 {
+        eprintln!("MInChI must have at least 4 parts separated by '/'.");
+        std::process::exit(exitcode::USAGE);
+    }
+    let concentration = chunks.pop().unwrap();
+    let indexing = chunks.pop().unwrap();
+
+    chunks.remove(0);
+    let structure = chunks.join("/");
+    let molecules: Vec<&str> = structure.split('&').collect();
+    for molecule in molecules {
+        let scheme = generate_scheme(molecule.to_string());
+        picture.add_scheme(scheme);
+    }
+
+    picture.add_bar(concentration.to_string(), indexing.to_string());
     picture
 }
 
@@ -171,7 +187,15 @@ fn main() {
                     println!("Image saved as {}", filename);
                 }
             } else if substance.starts_with("MInChI=") {
-                generate_for_minchi(substance.to_string(), picture);
+                let buffer = generate_for_minchi(substance.to_string(), picture).generate();
+
+                if *print || *print_only {
+                    print_to_terminal(buffer.clone());
+                }
+                if !*print_only {
+                    buffer.save(filename).unwrap();
+                    println!("Image saved as {}", filename);
+                }
             } else if substance.starts_with("InChIKey=") || substance.starts_with("MInChIKey=") {
                 eprintln!("Keys are not supported. Check readme for more info.");
                 std::process::exit(exitcode::USAGE);
