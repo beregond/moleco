@@ -1,5 +1,6 @@
 mod common;
 mod layouts;
+mod tokenize;
 
 use crate::common::{Format, Scheme};
 use crate::layouts::Picture;
@@ -124,6 +125,7 @@ fn generate_for_minchi(substance: String, mut picture: Picture) -> Picture {
         eprintln!("MInChI must have at least 4 parts separated by '/'.");
         std::process::exit(exitcode::USAGE);
     }
+    // Popping from the end, order is flipped
     let concentration = chunks.pop().unwrap();
     let indexing = chunks.pop().unwrap();
 
@@ -135,7 +137,7 @@ fn generate_for_minchi(substance: String, mut picture: Picture) -> Picture {
         picture.add_scheme(scheme);
     }
 
-    picture.add_bar(concentration.to_string(), indexing.to_string());
+    picture.add_bar(indexing.to_string(), concentration.to_string());
     picture
 }
 

@@ -1,5 +1,7 @@
 use crate::common::Scheme;
+use crate::tokenize::generate_compound_hierarchy;
 use image::{ImageBuffer, Rgba};
+use log::trace;
 use palette::{FromColor, Hsv, Srgba};
 
 pub struct Picture {
@@ -23,21 +25,36 @@ impl Picture {
         self.schemes.push(scheme);
     }
 
-    pub fn add_bar(&mut self, concentration: String, indexing: String) {
-        self.bar = Some((concentration, indexing));
+    pub fn add_bar(&mut self, indexing: String, concentration: String) {
+        self.bar = Some((indexing, concentration));
+    }
+
+    fn generate_bar(&self) -> Option<u32> {
+        match &self.bar {
+            None => None,
+            Some((indexing, concentration)) => {
+                let hierarchy = generate_compound_hierarchy(indexing, concentration);
+                return Some(hierarchy.calculate_level());
+            }
+        }
     }
 
     pub fn generate(&self) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
         let border_color: Srgba<u8> = Srgba::from_color(Hsv::new(0.0, 0.0, 0.1)).into_format();
         let eraser = Srgba::new(0, 0, 0, 0);
         let cell_size = self.base_size * 2 + self.border_size * 3;
-        let height = cell_size;
         let width = cell_size * self.schemes.len() as u32
             - (self.schemes.len() as u32 - 1) * self.border_size;
         let half_border = (self.border_size - 1) / 2;
         let half_size = (self.base_size - 1) / 2;
         let quarter_size = (half_size - 1) / 2;
         let eight_size = (quarter_size - 1) / 2;
+
+        let mut height = cell_size;
+        if let Some(level) = self.generate_bar() {
+            trace!("Level: {}", level);
+            height += quarter_size + level * quarter_size;
+        }
 
         let mut buffer = ImageBuffer::new(width, height);
         let mut offset = 0;
