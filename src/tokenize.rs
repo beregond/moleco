@@ -123,7 +123,7 @@ impl Compound {
                 CompoundKind::Compound(c) => {
                     level += c.calculate_level();
                 }
-                CompoundKind::Substance(_) => {}
+                _ => {}
             }
         }
         level

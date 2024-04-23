@@ -13,7 +13,7 @@ pub struct Scheme {
 }
 
 fn to_color(hue: u32) -> Srgb<u8> {
-    Srgb::from_color(Hsv::new(hue as f32, 0.7, 1.0)).into_format()
+    Srgb::from_color(Hsv::new(hue as f32, 0.7, 0.9)).into_format()
 }
 
 impl Scheme {
