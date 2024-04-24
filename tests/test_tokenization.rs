@@ -1,11 +1,16 @@
 use moleco::tokenize::{
-    generate_compound_hierarchy, tokenize_string, ComponentKind, Compound, Group, Token,
+    generate_compound_hierarchy, tokenize_string, ComponentKind, Compound, CompoundKind, Group,
+    Substance, Token,
 };
 
 // source: http://molmatinf.com/minchidemo/
 // 37% wt. Formaldehyde in Water with 10-15% Methanol
 static FORMALDEHYDE: &str =
     "MInChI=0.00.1S/CH2O/c1-2/h1H2&CH4O/c1-2/h2H,1H3&H2O/h1H2/n{{1&3}&2}/g{{37wf-2&}&10:15pp0}";
+
+static LITHIUM_DIISOPROPYLAMIDE_SOLUTION: &str =
+
+    "MInChI=0.00.1S/C4H8O/c1-2-4-5-3-1/h1-4H2&C6H12/c1-6-4-2-3-5-6/h6H,2-5H2,1H3&C6H14/c1-3-5-6-4-2/h3-6H2,1-2H3&C6H14/c1-4-5-6(2)3/h6H,4-5H2,1-3H3&C6H14/c1-4-6(3)5-2/h6H,4-5H2,1-3H3&C6H14N.Li/c1-5(2)7-6(3)4;/h5-6H,1-4H3;/q-1;+1/n{6&{1&{3&2&4&5}}}/g{1mr0&{1vp0&{5:7pp1&1:2pp1&1:5pp0&1:5pp0}7vp0}}";
 
 fn t(value: &str) -> ComponentKind {
     ComponentKind::Token(Token {
@@ -22,7 +27,15 @@ fn gk(components: Vec<ComponentKind>, value: Option<String>) -> ComponentKind {
 }
 
 fn get_formaldehyde_ic() -> (&'static str, &'static str) {
-    let mut chunks: Vec<&str> = FORMALDEHYDE.split('/').collect();
+    return get_ic(&FORMALDEHYDE);
+}
+
+fn get_lithium_ic() -> (&'static str, &'static str) {
+    return get_ic(&LITHIUM_DIISOPROPYLAMIDE_SOLUTION);
+}
+
+fn get_ic(payload: &str) -> (&str, &str) {
+    let mut chunks: Vec<&str> = payload.split('/').collect();
     let concentration = chunks.pop().unwrap();
     let indexing = chunks.pop().unwrap();
     (indexing, concentration)
@@ -96,6 +109,21 @@ fn test_tokenization_5() {
         )
     );
 }
+
+fn c(components: Vec<CompoundKind>, content: Option<String>) -> CompoundKind {
+    CompoundKind::Compound(Compound {
+        components,
+        content,
+    })
+}
+
+fn s(index: &str, content: Option<String>) -> CompoundKind {
+    CompoundKind::Substance(Substance {
+        index: index.to_string(),
+        content,
+    })
+}
+
 #[test]
 fn test_hierarchy_1() {
     let (indexing, concentration) = get_formaldehyde_ic();
@@ -103,8 +131,17 @@ fn test_hierarchy_1() {
     assert_eq!(
         hierarchy,
         Compound {
-            components: vec![],
-            content: Some("100".to_string()),
+            components: vec![
+                c(
+                    vec![
+                        s(&"1", Some("37wf-2".to_string())),
+                        s(&"3", Some("".to_string()))
+                    ],
+                    None
+                ),
+                s(&"2", Some("10:15pp0".to_string()))
+            ],
+            content: None,
         }
     );
 }

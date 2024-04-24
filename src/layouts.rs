@@ -335,6 +335,8 @@ impl Picture {
         let mut bar_layers: Vec<ShapeType> = Vec::new();
         let mut line_layers: Vec<ShapeType> = Vec::new();
 
+        //compound.calculate_concentration();
+
         // Offset and width gets '-1' because from this time we are working on the actual pixels,
         // which are indexed from 0.
         self.draw_components(
