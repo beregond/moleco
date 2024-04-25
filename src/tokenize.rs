@@ -80,16 +80,28 @@ fn parse_group(iter: &mut Peekable<Chars>) -> Group {
                 components.push(ComponentKind::Token(Token {
                     value: current_token,
                 }));
+                current_token = String::new();
             }
-            if let Some(next) = iter.peek() {
-                if next == &'&' {
+            let value: Option<String>;
+            // Parsing the value of the group if it exists, like "{group}value&other"
+            while let Some(&c) = iter.peek() {
+                if c == '}' {
+                    break;
+                } else if c == '&' {
+                    iter.next();
+                    break;
+                } else {
+                    current_token.push(c);
                     iter.next();
                 }
             }
-            return Group {
-                components,
-                value: None,
-            };
+            if !current_token.is_empty() {
+                value = Some(current_token);
+                current_token = String::new();
+            } else {
+                value = None;
+            }
+            return Group { components, value };
         } else {
             current_token.push(c);
             iter.next();

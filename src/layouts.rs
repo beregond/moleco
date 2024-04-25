@@ -335,8 +335,6 @@ impl Picture {
         let mut bar_layers: Vec<ShapeType> = Vec::new();
         let mut line_layers: Vec<ShapeType> = Vec::new();
 
-        //compound.calculate_concentration();
-
         // Offset and width gets '-1' because from this time we are working on the actual pixels,
         // which are indexed from 0.
         self.draw_components(
@@ -346,6 +344,7 @@ impl Picture {
             0,
             width - 1,
             base_bar_size,
+            1,
             &mut bar_layers,
             &mut line_layers,
         );
@@ -363,6 +362,7 @@ impl Picture {
         start_x: u32,
         end_x: u32,
         base_bar_size: u32,
+        depth: u32,
         bar_layers: &mut Vec<ShapeType>,
         line_layers: &mut Vec<ShapeType>,
     ) -> () {
@@ -415,47 +415,16 @@ impl Picture {
                         start,
                         end,
                         base_bar_size,
+                        depth + 1,
                         bar_layers,
                         line_layers,
                     );
                     bar_layers.push(ShapeType::Rectangle(Rectangle {
                         x: start,
-                        y: y_offset + base_bar_size,
+                        y: y_offset + base_bar_size * (level - 1),
                         width: end - start,
-                        height: base_bar_size * (level - 1),
+                        height: base_bar_size * depth,
                         color: Srgba::from_color(Hsv::new(0.0, 0.0, 0.8)).into_format(),
-                    }));
-                    line_layers.push(ShapeType::Line(Line {
-                        x1: start,
-                        y1: y_offset + base_bar_size,
-                        x2: start + end - start,
-                        y2: y_offset + base_bar_size,
-                        border_size: self.border_size,
-                        color: Srgba::from_color(Hsv::new(0.0, 0.0, 0.1)).into_format(),
-                    }));
-                    line_layers.push(ShapeType::Line(Line {
-                        x1: start + end - start,
-                        y1: y_offset + base_bar_size,
-                        x2: start + end - start,
-                        y2: y_offset + base_bar_size * level,
-                        border_size: self.border_size,
-                        color: Srgba::from_color(Hsv::new(0.0, 0.0, 0.1)).into_format(),
-                    }));
-                    line_layers.push(ShapeType::Line(Line {
-                        x1: start,
-                        y1: y_offset + base_bar_size,
-                        x2: start,
-                        y2: y_offset + base_bar_size * level,
-                        border_size: self.border_size,
-                        color: Srgba::from_color(Hsv::new(0.0, 0.0, 0.1)).into_format(),
-                    }));
-                    line_layers.push(ShapeType::Line(Line {
-                        x1: start,
-                        y1: y_offset + base_bar_size * level,
-                        x2: start + end - start,
-                        y2: y_offset + base_bar_size * level,
-                        border_size: self.border_size,
-                        color: Srgba::from_color(Hsv::new(0.0, 0.0, 0.1)).into_format(),
                     }));
                 }
                 CompoundKind::Substance(substance) => {

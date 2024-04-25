@@ -9,7 +9,6 @@ static FORMALDEHYDE: &str =
     "MInChI=0.00.1S/CH2O/c1-2/h1H2&CH4O/c1-2/h2H,1H3&H2O/h1H2/n{{1&3}&2}/g{{37wf-2&}&10:15pp0}";
 
 static LITHIUM_DIISOPROPYLAMIDE_SOLUTION: &str =
-
     "MInChI=0.00.1S/C4H8O/c1-2-4-5-3-1/h1-4H2&C6H12/c1-6-4-2-3-5-6/h6H,2-5H2,1H3&C6H14/c1-3-5-6-4-2/h3-6H2,1-2H3&C6H14/c1-4-5-6(2)3/h6H,4-5H2,1-3H3&C6H14/c1-4-6(3)5-2/h6H,4-5H2,1-3H3&C6H14N.Li/c1-5(2)7-6(3)4;/h5-6H,1-4H3;/q-1;+1/n{6&{1&{3&2&4&5}}}/g{1mr0&{1vp0&{5:7pp1&1:2pp1&1:5pp0&1:5pp0}7vp0}}";
 
 fn t(value: &str) -> ComponentKind {
@@ -110,6 +109,29 @@ fn test_tokenization_5() {
     );
 }
 
+#[test]
+fn test_tokenization_6() {
+    let result = tokenize_string("n1&{2&3&{58&67}foo}bar&4", 'n');
+    assert_eq!(
+        result,
+        g(
+            vec![
+                t("1"),
+                gk(
+                    vec![
+                        t("2"),
+                        t("3"),
+                        gk(vec![t("58"), t("67")], Some("foo".to_string()))
+                    ],
+                    Some("bar".to_string())
+                ),
+                t("4")
+            ],
+            None
+        )
+    );
+}
+
 fn c(components: Vec<CompoundKind>, content: Option<String>) -> CompoundKind {
     CompoundKind::Compound(Compound {
         components,
@@ -141,6 +163,37 @@ fn test_hierarchy_1() {
                 ),
                 s(&"2", Some("10:15pp0".to_string()))
             ],
+            content: None,
+        }
+    );
+}
+
+#[test]
+fn test_hierarchy_2() {
+    let (indexing, concentration) = get_lithium_ic();
+    let hierarchy = generate_compound_hierarchy(indexing, concentration);
+    assert_eq!(
+        hierarchy,
+        Compound {
+            components: vec![
+                s(&"6", Some("1mr0".to_string())),
+                c(
+                    vec![
+                        s(&"1", Some("1vp0".to_string())),
+                        c(
+                            vec![
+                                s(&"3", Some("5:7pp1".to_string())),
+                                s(&"2", Some("1:2pp1".to_string())),
+                                s(&"4", Some("1:5pp0".to_string())),
+                                s(&"5", Some("1:5pp0".to_string())),
+                            ],
+                            Some("7vp0".to_string())
+                        ),
+                    ],
+                    None
+                )
+            ],
+
             content: None,
         }
     );
