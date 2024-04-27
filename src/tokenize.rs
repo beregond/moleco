@@ -57,54 +57,66 @@ fn parse_group(iter: &mut Peekable<Chars>) -> Group {
     }
 
     while let Some(&c) = iter.peek() {
-        if c == '&' {
-            components.push(ComponentKind::Token(Token {
-                value: current_token,
-            }));
-            current_token = String::new();
-            iter.next();
-            // Case for & at the end of the group (e.g. "n{1&}")
-            if let Some(&next) = iter.peek() {
-                if next == '}' {
+        match c {
+            '&' => {
+                if !current_token.is_empty() {
                     components.push(ComponentKind::Token(Token {
-                        value: "".to_string(),
-                    }))
+                        value: current_token,
+                    }));
+                    current_token = String::new();
+                }
+                iter.next();
+
+                match iter.peek() {
+                    // Case for & at the end of the group or payload (e.g. "n{1&{2&}}")
+                    Some(&'}') | None => {
+                        components.push(ComponentKind::Token(Token {
+                            value: "".to_string(),
+                        }));
+                    }
+                    // Case for groupped &&
+                    Some(&'&') => {
+                        components.push(ComponentKind::Token(Token {
+                            value: "".to_string(),
+                        }));
+                    }
+                    _ => {}
                 }
             }
-        } else if c == '{' {
-            iter.next();
-            components.push(ComponentKind::Group(parse_group(iter)));
-        } else if c == '}' {
-            iter.next();
-            if !current_token.is_empty() {
-                components.push(ComponentKind::Token(Token {
-                    value: current_token,
-                }));
-                current_token = String::new();
+            '{' => {
+                iter.next();
+                components.push(ComponentKind::Group(parse_group(iter)));
             }
-            let value: Option<String>;
-            // Parsing the value of the group if it exists, like "{group}value&other"
-            while let Some(&c) = iter.peek() {
-                if c == '}' {
-                    break;
-                } else if c == '&' {
-                    iter.next();
-                    break;
-                } else {
-                    current_token.push(c);
-                    iter.next();
+            '}' => {
+                iter.next();
+                if !current_token.is_empty() {
+                    components.push(ComponentKind::Token(Token {
+                        value: current_token,
+                    }));
+                    current_token = String::new();
                 }
+                // Parsing the value of the group if it exists, like "{group}value&other"
+                while let Some(&c) = iter.peek() {
+                    match c {
+                        '}' | '&' => {
+                            break;
+                        }
+                        _ => {
+                            current_token.push(c);
+                            iter.next();
+                        }
+                    }
+                }
+                let value = match current_token.is_empty() {
+                    true => None,
+                    false => Some(current_token),
+                };
+                return Group { components, value };
             }
-            if !current_token.is_empty() {
-                value = Some(current_token);
-                current_token = String::new();
-            } else {
-                value = None;
+            _ => {
+                current_token.push(c);
+                iter.next();
             }
-            return Group { components, value };
-        } else {
-            current_token.push(c);
-            iter.next();
         }
     }
 

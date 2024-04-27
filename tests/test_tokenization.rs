@@ -9,7 +9,15 @@ static FORMALDEHYDE: &str =
     "MInChI=0.00.1S/CH2O/c1-2/h1H2&CH4O/c1-2/h2H,1H3&H2O/h1H2/n{{1&3}&2}/g{{37wf-2&}&10:15pp0}";
 
 static LITHIUM_DIISOPROPYLAMIDE_SOLUTION: &str =
-    "MInChI=0.00.1S/C4H8O/c1-2-4-5-3-1/h1-4H2&C6H12/c1-6-4-2-3-5-6/h6H,2-5H2,1H3&C6H14/c1-3-5-6-4-2/h3-6H2,1-2H3&C6H14/c1-4-5-6(2)3/h6H,4-5H2,1-3H3&C6H14/c1-4-6(3)5-2/h6H,4-5H2,1-3H3&C6H14N.Li/c1-5(2)7-6(3)4;/h5-6H,1-4H3;/q-1;+1/n{6&{1&{3&2&4&5}}}/g{1mr0&{1vp0&{5:7pp1&1:2pp1&1:5pp0&1:5pp0}7vp0}}";
+    "MInChI=0.00.1S/C4H8O/c1-2-4-5-3-1/h1-4H2&C6H12/c1-6-4-2-3-5-6/h6H,2-5H2,1H3&C6H14/c1-3-5-6-4-2/\
+    h3-6H2,1-2H3&C6H14/c1-4-5-6(2)3/h6H,4-5H2,1-3H3&C6H14/c1-4-6(3)5-2/h6H,4-5H2,1-3H3&C6H14N.Li/c1-5\
+    (2)7-6(3)4;/h5-6H,1-4H3;/q-1;+1/n{6&{1&{3&2&4&5}}}/g{1mr0&{1vp0&{5:7pp1&1:2pp1&1:5pp0&1:5pp0}7vp0}}";
+
+static DISHWASHING_LIQUID: &str =
+    "MInChI=0.00.1S/C12H26O4S.Na/c1-2-3-4-5-6-7-8-9-10-11-12-16-17(13,14)15;/h2-12H2,1H3,(H,13,14,15);\
+    /q;+1/p-1&C18H30O3S.Na/c1-2-3-4-5-6-7-8-9-10-11-12-17-13-15-18(16-14-17)22(19,20)21;/h13-16H,2-12H2,\
+    1H3,(H,19,20,21);/q;+1/p-1&ClH.Na/h1H;/q;+1/p-1&H2O/h1H2/n{4&{2&4}&&{1&4}&3}/g{807wf-3&{6pp1&4pp1}\
+    117wf-3&1wf-2&{27pp0&73pp0}66wf-3&}";
 
 fn t(value: &str) -> ComponentKind {
     ComponentKind::Token(Token {
@@ -31,6 +39,10 @@ fn get_formaldehyde_ic() -> (&'static str, &'static str) {
 
 fn get_lithium_ic() -> (&'static str, &'static str) {
     return get_ic(&LITHIUM_DIISOPROPYLAMIDE_SOLUTION);
+}
+
+fn get_liquid_ic() -> (&'static str, &'static str) {
+    return get_ic(&DISHWASHING_LIQUID);
 }
 
 fn get_ic(payload: &str) -> (&str, &str) {
@@ -194,6 +206,37 @@ fn test_hierarchy_2() {
                 )
             ],
 
+            content: None,
+        }
+    );
+}
+
+#[test]
+fn test_hierarchy_3() {
+    let (indexing, concentration) = get_liquid_ic();
+    let hierarchy = generate_compound_hierarchy(indexing, concentration);
+    assert_eq!(
+        hierarchy,
+        Compound {
+            components: vec![
+                s(&"4", Some("807wf-3".to_string())),
+                c(
+                    vec![
+                        s(&"2", Some("6pp1".to_string())),
+                        s(&"4", Some("4pp1".to_string())),
+                    ],
+                    Some("117wf-3".to_string())
+                ),
+                s(&"", Some("1wf-2".to_string())),
+                c(
+                    vec![
+                        s(&"1", Some("27pp0".to_string())),
+                        s(&"4", Some("73pp0".to_string())),
+                    ],
+                    Some("66wf-3".to_string())
+                ),
+                s(&"3", Some("".to_string())),
+            ],
             content: None,
         }
     );
