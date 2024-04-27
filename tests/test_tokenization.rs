@@ -212,7 +212,15 @@ fn test_hierarchy_2() {
 }
 
 #[test]
-fn test_hierarchy_3() {
+fn test_level() {
+    let indexing = "n{4&{2&4}&&{1&4}&3}";
+    let concentration = "g{1pp1&{6pp1&4pp1}2pp1&4pp1&{27pp0&73pp0}2pp1&1pp1}";
+    let hierarchy = generate_compound_hierarchy(indexing, concentration);
+    assert_eq!(hierarchy.calculate_level(), 2);
+}
+
+#[test]
+fn test_hierarchy_and_computation() {
     let (indexing, concentration) = get_liquid_ic();
     let hierarchy = generate_compound_hierarchy(indexing, concentration);
     assert_eq!(

@@ -141,16 +141,19 @@ pub struct Compound {
 
 impl Compound {
     pub fn calculate_level(&self) -> u32 {
-        let mut level = 1;
+        let mut max = 0;
         for component in &self.components {
             match component {
                 CompoundKind::Compound(c) => {
-                    level += c.calculate_level();
+                    let level = c.calculate_level();
+                    if level > max {
+                        max = level;
+                    }
                 }
                 _ => {}
             }
         }
-        level
+        return max + 1;
     }
 }
 
