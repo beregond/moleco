@@ -158,8 +158,88 @@ impl Compound {
 }
 
 #[derive(Debug, Eq, PartialEq)]
+pub enum ContentKind {
+    PP,
+    WV,
+    WF,
+    RF,
+    MF,
+    VP,
+    MR,
+    WR,
+    MB,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub struct Content {
+    pub value: usize,
+    pub kind: ContentKind,
+    pub cardinality: isize,
+}
+
+impl Content {
+    pub fn from_str(payload: &str) -> Result<Self, &str> {
+        let (value, kind, cardinality) = split_payload(payload).unwrap();
+        Ok(Self {
+            value,
+            kind,
+            cardinality,
+        })
+    }
+}
+
+fn split_payload(payload: &str) -> Result<(usize, ContentKind, isize), String> {
+    let (kind, split) = match payload {
+        s if s.contains("pp") => (ContentKind::PP, payload.split("pp")),
+        s if s.contains("wf") => (ContentKind::WF, payload.split("wf")),
+        _ => {
+            return Err(format!(
+                "Invalid content notation, unrecognized content infix idetifier - {:?}",
+                payload
+            ))
+        }
+    };
+
+    let chunks: Vec<&str> = split.collect();
+
+    if chunks.len() != 2 {
+        return Err(format!(
+            "Invalid content notation, too many parts - {:?}",
+            payload
+        ));
+    }
+
+    let value = match chunks[0] {
+        s if s.contains(":") => {
+            let parts: Vec<&str> = s.split(":").collect();
+            if parts.len() != 2 {
+                return Err(format!(
+                    "Invalid content notation, too many parts - {:?}",
+                    payload
+                ));
+            }
+
+            (parts[0].parse::<usize>().unwrap() + parts[1].parse::<usize>().unwrap()) / 2
+        }
+        s => s.parse::<usize>().unwrap(),
+    };
+
+    let cardinality = match chunks[1].parse::<isize>() {
+        Ok(c) => c,
+        Err(_) => {
+            return Err(format!(
+                "Invalid content notation, invalid cardinality - {:?}",
+                payload
+            ))
+        }
+    };
+
+    Ok((value, kind, cardinality))
+}
+
+#[derive(Debug, Eq, PartialEq)]
 pub struct Substance {
-    pub index: String,
+    pub index: Option<String>,
     pub content: Option<String>,
 }
 
@@ -204,7 +284,13 @@ fn combine_components(
 
 fn create_substance(indexing: &Token, concentration: &Token) -> Substance {
     Substance {
-        index: indexing.value.clone(),
-        content: Some(concentration.value.clone()),
+        index: match &indexing.value {
+            c if *c == "".to_string() => None,
+            _ => Some(indexing.value.clone()),
+        },
+        content: match concentration.value.clone() {
+            c if c == "".to_string() => None,
+            _ => Some(concentration.value.clone()),
+        },
     }
 }

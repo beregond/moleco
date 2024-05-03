@@ -1,6 +1,6 @@
 use moleco::tokenize::{
-    generate_compound_hierarchy, tokenize_string, ComponentKind, Compound, CompoundKind, Group,
-    Substance, Token,
+    generate_compound_hierarchy, tokenize_string, ComponentKind, Compound, CompoundKind, Content,
+    ContentKind, Group, Substance, Token,
 };
 
 // source: http://molmatinf.com/minchidemo/
@@ -151,11 +151,8 @@ fn c(components: Vec<CompoundKind>, content: Option<String>) -> CompoundKind {
     })
 }
 
-fn s(index: &str, content: Option<String>) -> CompoundKind {
-    CompoundKind::Substance(Substance {
-        index: index.to_string(),
-        content,
-    })
+fn s(index: Option<String>, content: Option<String>) -> CompoundKind {
+    CompoundKind::Substance(Substance { index, content })
 }
 
 #[test]
@@ -168,12 +165,12 @@ fn test_hierarchy_1() {
             components: vec![
                 c(
                     vec![
-                        s(&"1", Some("37wf-2".to_string())),
-                        s(&"3", Some("".to_string()))
+                        s(Some("1".to_string()), Some("37wf-2".to_string())),
+                        s(Some("3".to_string()), None)
                     ],
                     None
                 ),
-                s(&"2", Some("10:15pp0".to_string()))
+                s(Some("2".to_string()), Some("10:15pp0".to_string()))
             ],
             content: None,
         }
@@ -188,16 +185,16 @@ fn test_hierarchy_2() {
         hierarchy,
         Compound {
             components: vec![
-                s(&"6", Some("1mr0".to_string())),
+                s(Some("6".to_string()), Some("1mr0".to_string())),
                 c(
                     vec![
-                        s(&"1", Some("1vp0".to_string())),
+                        s(Some("1".to_string()), Some("1vp0".to_string())),
                         c(
                             vec![
-                                s(&"3", Some("5:7pp1".to_string())),
-                                s(&"2", Some("1:2pp1".to_string())),
-                                s(&"4", Some("1:5pp0".to_string())),
-                                s(&"5", Some("1:5pp0".to_string())),
+                                s(Some("3".to_string()), Some("5:7pp1".to_string())),
+                                s(Some("2".to_string()), Some("1:2pp1".to_string())),
+                                s(Some("4".to_string()), Some("1:5pp0".to_string())),
+                                s(Some("5".to_string()), Some("1:5pp0".to_string())),
                             ],
                             Some("7vp0".to_string())
                         ),
@@ -207,6 +204,45 @@ fn test_hierarchy_2() {
             ],
 
             content: None,
+        }
+    );
+}
+
+#[test]
+fn test_content_parsing() {
+    let content = Content::from_str("66wf-3").unwrap();
+    assert_eq!(
+        content,
+        Content {
+            value: 66,
+            kind: ContentKind::WF,
+            cardinality: -3,
+        }
+    );
+}
+
+#[test]
+fn test_content_parsing_range() {
+    let content = Content::from_str("5:7wf-3").unwrap();
+    assert_eq!(
+        content,
+        Content {
+            value: 6,
+            kind: ContentKind::WF,
+            cardinality: -3,
+        }
+    );
+}
+
+#[test]
+fn test_content_parsing_range_2() {
+    let content = Content::from_str("2:5pp0").unwrap();
+    assert_eq!(
+        content,
+        Content {
+            value: 3,
+            kind: ContentKind::PP,
+            cardinality: 0,
         }
     );
 }
@@ -227,23 +263,23 @@ fn test_hierarchy_and_computation() {
         hierarchy,
         Compound {
             components: vec![
-                s(&"4", Some("807wf-3".to_string())),
+                s(Some("4".to_string()), Some("807wf-3".to_string())),
                 c(
                     vec![
-                        s(&"2", Some("6pp1".to_string())),
-                        s(&"4", Some("4pp1".to_string())),
+                        s(Some("2".to_string()), Some("6pp1".to_string())),
+                        s(Some("4".to_string()), Some("4pp1".to_string())),
                     ],
                     Some("117wf-3".to_string())
                 ),
-                s(&"", Some("1wf-2".to_string())),
+                s(None, Some("1wf-2".to_string())),
                 c(
                     vec![
-                        s(&"1", Some("27pp0".to_string())),
-                        s(&"4", Some("73pp0".to_string())),
+                        s(Some("1".to_string()), Some("27pp0".to_string())),
+                        s(Some("4".to_string()), Some("73pp0".to_string())),
                     ],
                     Some("66wf-3".to_string())
                 ),
-                s(&"3", Some("".to_string())),
+                s(Some("3".to_string()), None),
             ],
             content: None,
         }

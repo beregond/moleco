@@ -369,6 +369,21 @@ impl Picture {
         let available_width = end_x - start_x;
         let ww = available_width / components.len() as u32;
 
+        let mut unknown = 0;
+        let mut contents: Vec<Option<String>> = vec![];
+        for component in &components {
+            match component {
+                CompoundKind::Compound(compound) => match &compound.content {
+                    Some(content) => contents.push(Some(content.clone())),
+                    None => unknown += 1,
+                },
+                CompoundKind::Substance(substance) => match &substance.content {
+                    Some(content) => contents.push(Some(content.clone())),
+                    None => unknown += 1,
+                },
+            }
+        }
+
         let mut start = start_x;
         let mut end = start_x + ww;
 
@@ -428,21 +443,23 @@ impl Picture {
                     }));
                 }
                 CompoundKind::Substance(substance) => {
-                    let index: Result<usize, _> = substance.index.parse();
-                    match index {
-                        Ok(value) => {
-                            bar_layers.push(ShapeType::Rectangle(Rectangle {
-                                x: start,
-                                y: y_offset,
-                                width: ww,
-                                height: base_bar_size * level,
-                                color: self.schemes[value - 1].primary.srgb.into(),
-                            }));
-                        }
-                        Err(_) => {
-                            trace!("Failed to parse index: {}", substance.index);
-                        }
-                    }
+                    let color = match substance.index {
+                        Some(index) => match index.parse::<usize>() {
+                            Ok(value) => self.schemes[value - 1].primary.srgb.into(),
+                            Err(_) => {
+                                trace!("Unknown index: {}", index);
+                                Srgba::from_color(Hsv::new(0.0, 0.0, 0.8)).into_format()
+                            }
+                        },
+                        None => Srgba::from_color(Hsv::new(0.0, 0.0, 0.8)).into_format(),
+                    };
+                    bar_layers.push(ShapeType::Rectangle(Rectangle {
+                        x: start,
+                        y: y_offset,
+                        width: ww,
+                        height: base_bar_size * level,
+                        color,
+                    }));
                 }
             }
             start = end;
