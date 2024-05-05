@@ -367,25 +367,103 @@ impl Picture {
         line_layers: &mut Vec<ShapeType>,
     ) -> () {
         let available_width = end_x - start_x;
-        let ww = available_width / components.len() as u32;
 
         let mut unknown = 0;
-        let mut contents: Vec<Option<String>> = vec![];
+        let mut size_taken = 0f32;
+        let mut sizes: Vec<Option<f32>> = vec![];
         for component in &components {
             match component {
                 CompoundKind::Compound(compound) => match &compound.content {
-                    Some(content) => contents.push(Some(content.clone())),
-                    None => unknown += 1,
+                    Some(content) => {
+                        let size = content.size();
+                        size_taken += size;
+                        sizes.push(Some(size));
+                    }
+                    None => {
+                        unknown += 1;
+                        sizes.push(None);
+                    }
                 },
                 CompoundKind::Substance(substance) => match &substance.content {
-                    Some(content) => contents.push(Some(content.clone())),
-                    None => unknown += 1,
+                    Some(content) => {
+                        let size = content.size();
+                        size_taken += size;
+                        sizes.push(Some(size));
+                    }
+                    None => {
+                        unknown += 1;
+                        sizes.push(None);
+                    }
                 },
             }
         }
 
-        let mut start = start_x;
-        let mut end = start_x + ww;
+        if size_taken > 100f32 {
+            trace!("Content defined in substande is greater than 100%");
+        } else if size_taken == 100f32 && unknown > 0 {
+            trace!("Content defined in substance equals 100%, although there are more components");
+        }
+
+        let default_size = match (size_taken, unknown) {
+            // Divide left space between unknown components
+            (st, un) if un > 0 => (100f32 - st) / un as f32,
+            _ => 0f32,
+        };
+        // Default size may be smaller than minimum size
+        let mut entry_sizes = sizes
+            .iter()
+            .map(|s| match s {
+                Some(size) => *size,
+                None => default_size,
+            })
+            .collect::<Vec<f32>>();
+
+        trace!("entry_sizes before: {:?}", entry_sizes);
+
+        while entry_sizes
+            .iter()
+            .min_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap()
+            < &10f32
+        {
+            entry_sizes = entry_sizes.iter().map(|s| s * 10f32).collect();
+        }
+
+        trace!("entry_sizes: {:?}", entry_sizes);
+
+        let ln_sizes = entry_sizes.iter().map(|s| s.ln()).collect::<Vec<f32>>();
+
+        trace!("ln sizes: {:?}", ln_sizes);
+
+        let ln_sum = ln_sizes.iter().sum::<f32>();
+
+        let mut actual_sizes = ln_sizes
+            .iter()
+            .map(|s| ((s / ln_sum * available_width as f32) as u32))
+            .collect::<Vec<u32>>();
+
+        // Streching, to reclaim pixels lost on rounding
+        let mut sizes_sum_diff: isize =
+            available_width as isize - actual_sizes.iter().sum::<u32>() as isize;
+        while sizes_sum_diff > 0 {
+            for i in 0..entry_sizes.len() {
+                if sizes_sum_diff == 0 {
+                    break;
+                }
+                actual_sizes[i] += 1;
+                sizes_sum_diff -= 1;
+            }
+        }
+        // Shrinking, to remove excess pixels
+        while sizes_sum_diff < 0 {
+            for i in 0..entry_sizes.len() {
+                if sizes_sum_diff == 0 {
+                    break;
+                }
+                actual_sizes[i] -= 1;
+                sizes_sum_diff += 1;
+            }
+        }
 
         line_layers.push(ShapeType::Line(Line {
             x1: start_x,
@@ -420,7 +498,12 @@ impl Picture {
             color: Srgba::from_color(Hsv::new(0.0, 0.0, 0.1)).into_format(),
         }));
 
+        let mut start = start_x;
+        let mut end = start_x;
+        let mut size_index = 0;
+
         for component in components {
+            end += actual_sizes[size_index];
             match component {
                 CompoundKind::Compound(compound) => {
                     self.draw_components(
@@ -456,14 +539,14 @@ impl Picture {
                     bar_layers.push(ShapeType::Rectangle(Rectangle {
                         x: start,
                         y: y_offset,
-                        width: ww,
+                        width: end - start,
                         height: base_bar_size * level,
                         color,
                     }));
                 }
             }
             start = end;
-            end += ww;
+            size_index += 1;
             line_layers.push(ShapeType::Line(Line {
                 x1: start,
                 y1: y_offset,
@@ -522,9 +605,9 @@ impl Square {
     // Insteado of square beeing anchored in top left corner, like in 99% of drawing libs, it is
     // anchored in the middle of the square. This is done to simplify calculation of key points in
     // whole image, but makes this implementation a bit magic.
-    // It can also be drawn as diamond, but then size is not the size of the diamond, but the size
-    // of the square that would fit the diamond (the size is actually size of the diagonals of the
-    // diamond).
+    // It can also be drawn as diamond, but then size is not the size of the side of the diamond, but the size
+    // of the square that would fit the diamond (the size is actually size of its diagonals).
+    //
     // Be warned.
     fn draw(&self, buffer: &mut ImageBuffer<Rgba<u8>, Vec<u8>>) {
         let half_size = (self.size - 1) / 2;

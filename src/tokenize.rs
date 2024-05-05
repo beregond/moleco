@@ -133,12 +133,6 @@ fn parse_group(iter: &mut Peekable<Chars>) -> Group {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
-pub struct Compound {
-    pub components: Vec<CompoundKind>,
-    pub content: Option<String>,
-}
-
 impl Compound {
     pub fn calculate_level(&self) -> u32 {
         let mut max = 0;
@@ -159,14 +153,21 @@ impl Compound {
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum ContentKind {
+    /// Parts per N, 51pp0 equals 51 percent, 5pp1 equals 50 percent
     PP,
+    /// Weight to total volume ratio (in percent), 25wr-3 equals to 2.5% of weight of 1L of solution
     WV,
+    /// Weight to total weight ratio (in percent), 37ww-2 equals 37 grams per 100 grams of solution (~37%)
     WF,
+    /// Volume to total volume ratio (in percent), 87rf-1 equals 8.7 milliliters per 100 milliliters of solution (~87%)
     RF,
+    /// Mole to total mole ratio (in percent), 12mf0 equals 12 moles per 100 moles of solution (~12%)
     MF,
+    /// Ratio of two volumes, 60vp0&40vp0 equals 60:40 ratio (and is equal to 6vp1&4vp1)
     VP,
+    /// Mole per liter of total solution, 17mr-1 equals 1.7 moles per liter of solution
     MR,
-    WR,
+    /// Mole per kilogram of solvent, 55mb-1 equals 5.5 moles per kilogram of solution
     MB,
 }
 
@@ -174,17 +175,36 @@ pub enum ContentKind {
 pub struct Content {
     pub value: usize,
     pub kind: ContentKind,
-    pub cardinality: isize,
+    pub magnitude: isize,
 }
 
 impl Content {
     pub fn from_str(payload: &str) -> Result<Self, &str> {
-        let (value, kind, cardinality) = split_payload(payload).unwrap();
+        let (value, kind, magnitude) = split_payload(payload).unwrap();
         Ok(Self {
             value,
             kind,
-            cardinality,
+            magnitude,
         })
+    }
+
+    pub fn size(&self) -> f32 {
+        match self.kind {
+            ContentKind::PP => self._percentage(&self.value, &self.magnitude),
+            ContentKind::WV => self._percentage(&self.value, &self.magnitude),
+            ContentKind::WF => self._percentage(&self.value, &self.magnitude),
+            ContentKind::RF => self._percentage(&self.value, &self.magnitude),
+            ContentKind::MF => self._percentage(&self.value, &self.magnitude),
+            ContentKind::VP => self._percentage(&self.value, &self.magnitude),
+            // In case of MR and MB - lets calculate kind of like it was water,
+            // differences won't be significant anyway on logharitmic scale.
+            ContentKind::MR => self._percentage(&(self.value * 10), &self.magnitude),
+            ContentKind::MB => self._percentage(&(self.value * 10), &self.magnitude),
+        }
+    }
+
+    fn _percentage(&self, value: &usize, magnitude: &isize) -> f32 {
+        *value as f32 * 10f32.powi(*magnitude as i32)
     }
 }
 
@@ -192,6 +212,12 @@ fn split_payload(payload: &str) -> Result<(usize, ContentKind, isize), String> {
     let (kind, split) = match payload {
         s if s.contains("pp") => (ContentKind::PP, payload.split("pp")),
         s if s.contains("wf") => (ContentKind::WF, payload.split("wf")),
+        s if s.contains("wv") => (ContentKind::WV, payload.split("wv")),
+        s if s.contains("rf") => (ContentKind::RF, payload.split("rf")),
+        s if s.contains("mf") => (ContentKind::MF, payload.split("mf")),
+        s if s.contains("vp") => (ContentKind::VP, payload.split("vp")),
+        s if s.contains("mr") => (ContentKind::MR, payload.split("mr")),
+        s if s.contains("mb") => (ContentKind::MB, payload.split("mb")),
         _ => {
             return Err(format!(
                 "Invalid content notation, unrecognized content infix idetifier - {:?}",
@@ -224,23 +250,29 @@ fn split_payload(payload: &str) -> Result<(usize, ContentKind, isize), String> {
         s => s.parse::<usize>().unwrap(),
     };
 
-    let cardinality = match chunks[1].parse::<isize>() {
+    let magnitude = match chunks[1].parse::<isize>() {
         Ok(c) => c,
         Err(_) => {
             return Err(format!(
-                "Invalid content notation, invalid cardinality - {:?}",
+                "Invalid content notation, invalid magnitude - {:?}",
                 payload
             ))
         }
     };
 
-    Ok((value, kind, cardinality))
+    Ok((value, kind, magnitude))
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub struct Compound {
+    pub components: Vec<CompoundKind>,
+    pub content: Option<Content>,
 }
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Substance {
     pub index: Option<String>,
-    pub content: Option<String>,
+    pub content: Option<Content>,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -258,7 +290,10 @@ pub fn generate_compound_hierarchy(indexing: &str, concentration: &str) -> Compo
 fn combine_groups(indexing_group: &Group, concentration_group: &Group) -> Compound {
     Compound {
         components: combine_components(&indexing_group.components, &concentration_group.components),
-        content: concentration_group.value.clone(),
+        content: match &concentration_group.value {
+            Some(v) => Some(Content::from_str(&v).unwrap()),
+            None => None,
+        },
     }
 }
 
@@ -290,7 +325,7 @@ fn create_substance(indexing: &Token, concentration: &Token) -> Substance {
         },
         content: match concentration.value.clone() {
             c if c == "".to_string() => None,
-            _ => Some(concentration.value.clone()),
+            _ => Some(Content::from_str(&concentration.value).unwrap()),
         },
     }
 }

@@ -145,6 +145,10 @@ fn test_tokenization_6() {
 }
 
 fn c(components: Vec<CompoundKind>, content: Option<String>) -> CompoundKind {
+    let content = match content {
+        Some(c) => Some(Content::from_str(&c).unwrap()),
+        None => None,
+    };
     CompoundKind::Compound(Compound {
         components,
         content,
@@ -152,6 +156,10 @@ fn c(components: Vec<CompoundKind>, content: Option<String>) -> CompoundKind {
 }
 
 fn s(index: Option<String>, content: Option<String>) -> CompoundKind {
+    let content = match content {
+        Some(c) => Some(Content::from_str(&c).unwrap()),
+        None => None,
+    };
     CompoundKind::Substance(Substance { index, content })
 }
 
@@ -216,7 +224,7 @@ fn test_content_parsing() {
         Content {
             value: 66,
             kind: ContentKind::WF,
-            cardinality: -3,
+            magnitude: -3,
         }
     );
 }
@@ -229,7 +237,7 @@ fn test_content_parsing_range() {
         Content {
             value: 6,
             kind: ContentKind::WF,
-            cardinality: -3,
+            magnitude: -3,
         }
     );
 }
@@ -242,7 +250,7 @@ fn test_content_parsing_range_2() {
         Content {
             value: 3,
             kind: ContentKind::PP,
-            cardinality: 0,
+            magnitude: 0,
         }
     );
 }
