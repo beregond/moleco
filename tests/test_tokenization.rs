@@ -144,6 +144,26 @@ fn test_tokenization_6() {
     );
 }
 
+#[test]
+fn test_tokenization_7() {
+    assert_eq!(
+        tokenize_string("n{1&2}&{3&4}", 'n'),
+        tokenize_string("n{{1&2}&{3&4}}", 'n'),
+    );
+}
+
+#[test]
+#[should_panic]
+fn test_tokenization_8() {
+    tokenize_string("n{1&2}&{3&4", 'n');
+}
+
+#[test]
+#[should_panic]
+fn test_tokenization_9() {
+    tokenize_string("n{1&2}}&{3&4}", 'n');
+}
+
 fn c(components: Vec<CompoundKind>, content: Option<String>) -> CompoundKind {
     let content = match content {
         Some(c) => Some(Content::from_str(&c).unwrap()),

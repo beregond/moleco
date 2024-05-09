@@ -365,7 +365,7 @@ impl Picture {
         depth: u32,
         bar_layers: &mut Vec<ShapeType>,
         line_layers: &mut Vec<ShapeType>,
-    ) -> () {
+    ) {
         let available_width = end_x - start_x;
 
         let mut unknown = 0;

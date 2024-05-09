@@ -22,6 +22,7 @@ pub fn tokenize_string(input: &str, start: char) -> Group {
     if input.is_empty() {
         panic!("Empty input");
     }
+    // Prefix removal
     let mut iter = input.chars();
     if iter.next().unwrap() != start {
         panic!(
@@ -31,14 +32,53 @@ pub fn tokenize_string(input: &str, start: char) -> Group {
     }
     let mut new_input: String = iter.collect();
 
-    // Magic to remove the first and last character if they are '{' and '}'
+    // Check if parentheses are matching and if first/last character is '{' and '}'
     let len = new_input.len();
-    if len > 1 {
-        let first_char = new_input.get(0..1).unwrap();
-        let last_char = new_input.get(len - 1..).unwrap();
-        if first_char == "{" && last_char == "}" {
-            new_input = new_input.get(1..len - 1).unwrap().to_string();
+    let ends_with_paren = match len {
+        l if l > 0 => match new_input.get(len - 1..) {
+            Some("}") => true,
+            _ => false,
+        },
+        _ => false,
+    };
+    let mut iter = new_input.chars().peekable();
+    let starts_with_paren = match iter.peek() {
+        Some(&'{') => true,
+        _ => false,
+    };
+
+    // Check if parentheses are matching
+    // Also check if the first group is covering the entire payload
+    let mut first_group_is_covering_entire_payload = true;
+    let mut level_indicator = 0;
+    while let Some(&c) = iter.peek() {
+        let mut decreased = false;
+        match c {
+            '{' => {
+                level_indicator += 1;
+            }
+            '}' => {
+                level_indicator -= 1;
+                decreased = true;
+            }
+            _ => {}
         }
+        if level_indicator < 0 {
+            panic!("Unmatching parentheses in input {}", input);
+        }
+        iter.next();
+        // Check if first group closed before the end of the payload
+        if decreased && level_indicator == 0 && iter.peek().is_some() {
+            first_group_is_covering_entire_payload = false;
+        }
+    }
+    if level_indicator != 0 {
+        panic!("Unmatching parentheses in input {}", input);
+    }
+
+    // Magic to remove the first and last character if they are '{' and '}' and the group is covering the entire payload
+    if starts_with_paren && ends_with_paren && first_group_is_covering_entire_payload {
+        new_input = new_input.get(1..len - 1).unwrap().to_string();
     }
 
     let mut iter = new_input.chars().peekable();
