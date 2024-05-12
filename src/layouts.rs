@@ -1,5 +1,5 @@
 use crate::common::Scheme;
-use crate::tokenize::{generate_compound_hierarchy, Compound, CompoundKind};
+use crate::tokenize::{generate_compound_hierarchy, Compound, CompoundKind, Content, ContentKind};
 use image::{ImageBuffer, Rgba};
 use log::trace;
 use palette::{FromColor, Hsv, Srgba};
@@ -368,6 +368,61 @@ impl Picture {
     ) {
         let available_width = end_x - start_x;
 
+        let mut magnitudes: Vec<isize> = vec![];
+        let mut content_kinds: Vec<&ContentKind> = vec![];
+        for component in &components {
+            match component {
+                CompoundKind::Compound(compound) => match &compound.content {
+                    Some(content) => {
+                        content_kinds.push(&content.kind);
+                        magnitudes.push(content.magnitude);
+                    }
+                    None => {}
+                },
+                CompoundKind::Substance(substance) => match &substance.content {
+                    Some(content) => {
+                        content_kinds.push(&content.kind);
+                        magnitudes.push(content.magnitude);
+                    }
+                    None => {}
+                },
+            }
+        }
+        let min_magnitude = magnitudes.iter().min().unwrap();
+
+        let mut seen_kinds: Vec<&ContentKind> = vec![];
+        for kind in &content_kinds {
+            if seen_kinds.contains(kind) {
+                continue;
+            }
+            seen_kinds.push(kind);
+        }
+        if seen_kinds.len() > 1 {
+            panic!(
+                "Different content kinds in one level, only one is allowed {:?}",
+                seen_kinds
+            );
+        }
+        let content_kind = seen_kinds[0];
+
+        let mut values: Vec<usize> = vec![];
+        for component in &components {
+            match component {
+                CompoundKind::Compound(compound) => match &compound.content {
+                    Some(content) => values.push(content.value_at_magnitude(min_magnitude)),
+                    None => {}
+                },
+                CompoundKind::Substance(substance) => match &substance.content {
+                    Some(content) => values.push(content.value_at_magnitude(min_magnitude)),
+                    None => {}
+                },
+            }
+        }
+        //let capacity = Content::calculate_capacity(content_kind, min_magnitude);
+        trace!("min_magnitude: {}", min_magnitude);
+        trace!("values: {:?}", values);
+        trace!("sum: {}", values.iter().sum::<usize>());
+
         let mut unknown = 0;
         let mut size_taken = 0f32;
         let mut sizes: Vec<Option<f32>> = vec![];
@@ -602,7 +657,7 @@ impl Square {
         return sum <= line;
     }
 
-    // Insteado of square beeing anchored in top left corner, like in 99% of drawing libs, it is
+    // Instead of square being anchored in top left corner, like in 99% of drawing libs, it is
     // anchored in the middle of the square. This is done to simplify calculation of key points in
     // whole image, but makes this implementation a bit magic.
     // It can also be drawn as diamond, but then size is not the size of the side of the diamond, but the size

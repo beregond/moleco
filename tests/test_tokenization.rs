@@ -313,3 +313,35 @@ fn test_hierarchy_and_computation() {
         }
     );
 }
+
+#[test]
+fn test_content_pp_1() {
+    let content = Content::from_str("6pp1").unwrap();
+    assert_eq!(content.value, 6);
+    assert_eq!(content.kind, ContentKind::PP);
+    assert_eq!(content.magnitude, 1);
+    assert_eq!(content.value_at_magnitude(&0), 60);
+}
+
+#[test]
+#[should_panic]
+/// PP magnitude must be below or equal 1
+fn test_content_pp_2() {
+    Content::from_str("6pp2").unwrap();
+}
+
+#[test]
+#[should_panic]
+fn test_content_capacity_pp_1() {
+    Content::capacity(&ContentKind::PP, &2isize);
+}
+
+#[test]
+#[should_panic]
+fn test_content_capacity_pp_2() {
+    assert_eq!(Content::capacity(&ContentKind::PP, &1isize), 10);
+    assert_eq!(Content::capacity(&ContentKind::PP, &0isize), 100);
+    assert_eq!(Content::capacity(&ContentKind::PP, &-1isize), 100);
+    assert_eq!(Content::capacity(&ContentKind::PP, &-2isize), 1000);
+    assert_eq!(Content::capacity(&ContentKind::PP, &-3isize), 10000);
+}

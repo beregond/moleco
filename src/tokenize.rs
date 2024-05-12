@@ -221,6 +221,17 @@ pub struct Content {
 impl Content {
     pub fn from_str(payload: &str) -> Result<Self, &str> {
         let (value, kind, magnitude) = split_payload(payload).unwrap();
+        match kind {
+            ContentKind::PP => {
+                if magnitude > 1 {
+                    panic!(
+                        "PP content magnitude must be below or equal 1, problematic payload {}",
+                        payload
+                    );
+                }
+            }
+            _ => {}
+        }
         Ok(Self {
             value,
             kind,
@@ -245,6 +256,33 @@ impl Content {
 
     fn _percentage(&self, value: &usize, magnitude: &isize) -> f32 {
         *value as f32 * 10f32.powi(*magnitude as i32)
+    }
+
+    pub fn value_at_magnitude(&self, magnitude: &isize) -> usize {
+        if magnitude == &self.magnitude {
+            return self.value;
+        } else if magnitude > &self.magnitude {
+            // It's not like it is impossible to calculate size at higher magnitude,
+            // but it makes no sense in this context, so this is defensive check against it.
+            panic!("Calculating size at higher magnitude is blocked");
+        } else {
+            return self.value * 10usize.pow((self.magnitude - magnitude) as u32);
+        }
+    }
+
+    pub fn capacity(content_kind: &ContentKind, magnitude: &isize) -> usize {
+        match content_kind {
+            ContentKind::PP => {
+                if magnitude > &1isize {
+                    panic!(
+                        "PP content magnitude must be below or equal 1, given - {}",
+                        magnitude
+                    );
+                }
+                10usize.pow(-(magnitude - 2) as u32)
+            }
+            _ => 10,
+        }
     }
 }
 
