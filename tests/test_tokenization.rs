@@ -276,14 +276,6 @@ fn test_content_parsing_range_2() {
 }
 
 #[test]
-fn test_level() {
-    let indexing = "n{4&{2&4}&&{1&4}&3}";
-    let concentration = "g{1pp1&{6pp1&4pp1}2pp1&4pp1&{27pp0&73pp0}2pp1&1pp1}";
-    let hierarchy = generate_compound_hierarchy(indexing, concentration);
-    assert_eq!(hierarchy.calculate_level(), 2);
-}
-
-#[test]
 fn test_hierarchy_and_computation() {
     let (indexing, concentration) = get_liquid_ic();
     let hierarchy = generate_compound_hierarchy(indexing, concentration);
@@ -333,15 +325,21 @@ fn test_content_pp_2() {
 #[test]
 #[should_panic]
 fn test_content_capacity_pp_1() {
-    Content::capacity(&ContentKind::PP, &2isize);
+    Content::calculate_capacity(&ContentKind::PP, &2isize);
 }
 
 #[test]
 #[should_panic]
 fn test_content_capacity_pp_2() {
-    assert_eq!(Content::capacity(&ContentKind::PP, &1isize), 10);
-    assert_eq!(Content::capacity(&ContentKind::PP, &0isize), 100);
-    assert_eq!(Content::capacity(&ContentKind::PP, &-1isize), 100);
-    assert_eq!(Content::capacity(&ContentKind::PP, &-2isize), 1000);
-    assert_eq!(Content::capacity(&ContentKind::PP, &-3isize), 10000);
+    assert_eq!(Content::calculate_capacity(&ContentKind::PP, &1isize), 10);
+    assert_eq!(Content::calculate_capacity(&ContentKind::PP, &0isize), 100);
+    assert_eq!(Content::calculate_capacity(&ContentKind::PP, &-1isize), 100);
+    assert_eq!(
+        Content::calculate_capacity(&ContentKind::PP, &-2isize),
+        1000
+    );
+    assert_eq!(
+        Content::calculate_capacity(&ContentKind::PP, &-3isize),
+        10000
+    );
 }

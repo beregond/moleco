@@ -173,24 +173,6 @@ fn parse_group(iter: &mut Peekable<Chars>) -> Group {
     }
 }
 
-impl Compound {
-    pub fn calculate_level(&self) -> u32 {
-        let mut max = 0;
-        for component in &self.components {
-            match component {
-                CompoundKind::Compound(c) => {
-                    let level = c.calculate_level();
-                    if level > max {
-                        max = level;
-                    }
-                }
-                _ => {}
-            }
-        }
-        return max + 1;
-    }
-}
-
 #[derive(Debug, Eq, PartialEq)]
 pub enum ContentKind {
     /// Parts per N, 51pp0 equals 51 percent, 5pp1 equals 50 percent
@@ -239,25 +221,6 @@ impl Content {
         })
     }
 
-    pub fn size(&self) -> f32 {
-        match self.kind {
-            ContentKind::PP => self._percentage(&self.value, &self.magnitude),
-            ContentKind::WV => self._percentage(&self.value, &self.magnitude),
-            ContentKind::WF => self._percentage(&self.value, &self.magnitude),
-            ContentKind::RF => self._percentage(&self.value, &self.magnitude),
-            ContentKind::MF => self._percentage(&self.value, &self.magnitude),
-            ContentKind::VP => self._percentage(&self.value, &self.magnitude),
-            // In case of MR and MB - lets calculate kind of like it was water,
-            // differences won't be significant anyway on logharitmic scale.
-            ContentKind::MR => self._percentage(&(self.value * 10), &self.magnitude),
-            ContentKind::MB => self._percentage(&(self.value * 10), &self.magnitude),
-        }
-    }
-
-    fn _percentage(&self, value: &usize, magnitude: &isize) -> f32 {
-        *value as f32 * 10f32.powi(*magnitude as i32)
-    }
-
     pub fn value_at_magnitude(&self, magnitude: &isize) -> usize {
         if magnitude == &self.magnitude {
             return self.value;
@@ -270,7 +233,8 @@ impl Content {
         }
     }
 
-    pub fn capacity(content_kind: &ContentKind, magnitude: &isize) -> usize {
+    /// TODO: Describe this
+    pub fn calculate_capacity(content_kind: &ContentKind, magnitude: &isize) -> usize {
         match content_kind {
             ContentKind::PP => {
                 if magnitude > &1isize {
@@ -281,7 +245,8 @@ impl Content {
                 }
                 10usize.pow(-(magnitude - 2) as u32)
             }
-            _ => 10,
+            // FIXME
+            _ => 100,
         }
     }
 }
