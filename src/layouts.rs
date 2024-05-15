@@ -380,21 +380,39 @@ impl Picture {
             }
         }
 
-        let mut ordered_widths: Vec<(String, f32)> = vec![];
-        let mut empty: Vec<(String, f32)> = vec![];
+        let mut ordered_widths_map: HashMap<String, f32> = HashMap::new();
+        let mut empty_map: HashMap<String, f32> = HashMap::new();
         let mut unknown: Option<(String, f32)> = None;
 
         for (key, value) in sums.iter() {
             if key == "" {
                 unknown = Some((key.clone(), *value));
             } else if *value == 0f32 {
-                empty.push((key.clone(), *value));
+                empty_map.insert(key.clone(), *value);
             } else {
-                ordered_widths.push((key.clone(), *value));
+                ordered_widths_map.insert(key.clone(), *value);
             }
         }
 
-        //FIXME: I need some more ordering here, to make sorting stable
+        let mut ordered_widths: Vec<(String, f32)> = vec![];
+        let mut empty: Vec<(String, f32)> = vec![];
+
+        for key in 0..self.schemes.len() {
+            // FIXME again off by one, should be done only once
+            let str_key = (key + 1).to_string();
+            match ordered_widths_map.get(&str_key) {
+                Some(value) => ordered_widths.push((str_key, *value)),
+                None => {}
+            }
+        }
+
+        for key in 0..self.schemes.len() {
+            let str_key = (key + 1).to_string();
+            match empty_map.get(&str_key) {
+                Some(value) => empty.push((str_key, *value)),
+                None => {}
+            }
+        }
 
         for (key, value) in empty {
             ordered_widths.push((key, value));

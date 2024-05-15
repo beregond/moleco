@@ -177,15 +177,15 @@ fn parse_group(iter: &mut Peekable<Chars>) -> Group {
 pub enum ContentKind {
     /// Parts per N, 51pp0 equals 51 percent, 5pp1 equals 50 percent
     PP,
-    /// Weight to total volume ratio (in percent), 25wr-3 equals to 2.5% of weight of 1L of solution
+    /// Weight to total volume ratio (in percent), 25wr-3 equals to 0.25% of weight of 1L of solution
     WV,
     /// Weight to total weight ratio (in percent), 37ww-2 equals 37 grams per 100 grams of solution (~37%)
     WF,
-    /// Volume to total volume ratio (in percent), 87rf-1 equals 8.7 milliliters per 100 milliliters of solution (~87%)
+    /// Volume to total volume ratio (in percent), 87rf-1 equals 8.7 milliliters per 100 milliliters of solution (~8.7%)
     RF,
     /// Mole to total mole ratio (in percent), 12mf0 equals 12 moles per 100 moles of solution (~12%)
     MF,
-    /// Ratio of two volumes, 60vp0&40vp0 equals 60:40 ratio (and is equal to 6vp1&4vp1)
+    /// Ratio of two volumes, 37vp0&28vp0 equals 37:28 ratio
     VP,
     /// Mole per liter of total solution, 17mr-1 equals 1.7 moles per liter of solution
     MR,
@@ -203,17 +203,6 @@ pub struct Content {
 impl Content {
     pub fn from_str(payload: &str) -> Result<Self, &str> {
         let (value, kind, magnitude) = split_payload(payload).unwrap();
-        match kind {
-            ContentKind::PP => {
-                if magnitude > 1 {
-                    panic!(
-                        "PP content magnitude must be below or equal 1, problematic payload {}",
-                        payload
-                    );
-                }
-            }
-            _ => {}
-        }
         Ok(Self {
             value,
             kind,
@@ -236,17 +225,27 @@ impl Content {
     /// TODO: Describe this
     pub fn calculate_capacity(content_kind: &ContentKind, magnitude: &isize) -> usize {
         match content_kind {
-            ContentKind::PP => {
+            ContentKind::PP | ContentKind::MF => {
                 if magnitude > &1isize {
-                    panic!(
-                        "PP content magnitude must be below or equal 1, given - {}",
-                        magnitude
-                    );
+                    return 100;
                 }
                 10usize.pow(-(magnitude - 2) as u32)
             }
-            // FIXME
-            _ => 100,
+            // FIXME - add tests
+            ContentKind::WV
+            | ContentKind::WF
+            | ContentKind::RF
+            | ContentKind::MR
+            | ContentKind::MB => {
+                if magnitude > &-1isize {
+                    return 100;
+                }
+                10usize.pow(-magnitude as u32)
+            }
+            ContentKind::VP => {
+                // This is an edge case, FIXME
+                return 100;
+            }
         }
     }
 }
