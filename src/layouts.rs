@@ -611,7 +611,6 @@ impl Picture {
                 },
             }
         }
-        let min_magnitude = magnitudes.iter().min().unwrap();
 
         let mut seen_kinds: Vec<&ContentKind> = vec![];
         for kind in &content_kinds {
@@ -629,6 +628,15 @@ impl Picture {
         // TODO Where is check if there is at least one?
         let content_kind = seen_kinds[0];
 
+        match Content::maximum_viable_magnitude(content_kind) {
+            Some(max_level) => {
+                magnitudes.push(max_level);
+            }
+            None => {}
+        }
+
+        let min_magnitude = magnitudes.iter().min().unwrap();
+
         let mut values: Vec<usize> = vec![];
         for component in components {
             match component {
@@ -642,8 +650,12 @@ impl Picture {
                 },
             }
         }
-        let capacity = Content::calculate_capacity(content_kind, min_magnitude);
         let sum = values.iter().sum::<usize>();
+        let capacity = match Content::calculate_capacity(content_kind, min_magnitude) {
+            Some(capacity) => capacity,
+            None => sum,
+        };
+
         trace!("capacity: {}", capacity);
         trace!("min_magnitude: {}", min_magnitude);
         trace!("values: {:?}", values);
@@ -654,7 +666,7 @@ impl Picture {
             // If taken capacity is more than 100% - every substance without content specified will
             // be treated as addition with no representation in the bar.
             (_, s, c) if s >= c => {}
-            // There is some unknown substance with known volume
+            // There is some unknown substance(s) with known volume
             (u, s, c) if u == 0 && s < c => {
                 result.push(("".to_string(), (c - s) as f32 / s as f32));
             }

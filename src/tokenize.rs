@@ -175,13 +175,14 @@ fn parse_group(iter: &mut Peekable<Chars>) -> Group {
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum ContentKind {
+    // To get idea what those infixes do, check cauculate_capacity function
     /// Parts per N, 51pp0 equals 51 percent, 5pp1 equals 50 percent
     PP,
-    /// Weight to total volume ratio (in percent), 25wr-3 equals to 0.25% of weight of 1L of solution
+    /// Weight to total volume ratio (in percent), ~25wr-3 equals to 2.5% of weight of solution
     WV,
     /// Weight to total weight ratio (in percent), 37ww-2 equals 37 grams per 100 grams of solution (~37%)
     WF,
-    /// Volume to total volume ratio (in percent), 87rf-1 equals 8.7 milliliters per 100 milliliters of solution (~8.7%)
+    /// Volume to total volume ratio (in percent), 87rf-3 equals 8.7 milliliters per 100 milliliters of solution (~8.7%)
     RF,
     /// Mole to total mole ratio (in percent), 12mf0 equals 12 moles per 100 moles of solution (~12%)
     MF,
@@ -223,29 +224,40 @@ impl Content {
     }
 
     /// TODO: Describe this
-    pub fn calculate_capacity(content_kind: &ContentKind, magnitude: &isize) -> usize {
+    pub fn calculate_capacity(content_kind: &ContentKind, magnitude: &isize) -> Option<usize> {
         match content_kind {
             ContentKind::PP | ContentKind::MF => {
                 if magnitude > &1isize {
-                    return 100;
+                    panic!("Magnitude too big");
                 }
-                10usize.pow(-(magnitude - 2) as u32)
+                Some(10usize.pow(-(magnitude - 2) as u32))
             }
             // FIXME - add tests
-            ContentKind::WV
-            | ContentKind::WF
-            | ContentKind::RF
-            | ContentKind::MR
-            | ContentKind::MB => {
+            ContentKind::WV | ContentKind::WF | ContentKind::RF => {
                 if magnitude > &-1isize {
-                    return 100;
+                    panic!("Magnitude too big");
                 }
-                10usize.pow(-magnitude as u32)
+                Some(10usize.pow(-magnitude as u32))
             }
-            ContentKind::VP => {
-                // This is an edge case, FIXME
-                return 100;
+            ContentKind::MR | ContentKind::MB => {
+                if magnitude > &0isize {
+                    panic!("Magnitude too big");
+                }
+                Some(10usize.pow(-(magnitude - 1) as u32) * 2)
             }
+            ContentKind::VP => None,
+        }
+    }
+
+    /// Check what is maximum magnitude that makes sense for calculations.
+    /// In other words at which level we can still talk about meaningful parts, and not values that
+    /// are above 100% of content.
+    pub fn maximum_viable_magnitude(content_kind: &ContentKind) -> Option<isize> {
+        match content_kind {
+            ContentKind::PP | ContentKind::MF => Some(1),
+            ContentKind::WV | ContentKind::WF | ContentKind::RF => Some(-1),
+            ContentKind::MR | ContentKind::MB => Some(0),
+            ContentKind::VP => None,
         }
     }
 }
