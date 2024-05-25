@@ -1,9 +1,16 @@
 use crate::common::Scheme;
-use crate::tokenize::{generate_compound_hierarchy, Compound, CompoundKind, Content, ContentKind};
+use crate::tokenize::{
+    generate_compound_hierarchy, CapacityType, Compound, CompoundKind, Content, ContentKind,
+};
 use image::{ImageBuffer, Rgba};
 use log::trace;
 use palette::{FromColor, Hsv, Srgba};
 use std::collections::HashMap;
+
+struct WidthsResult {
+    widths: Vec<(String, f32)>,
+    unestimated_capacity: bool,
+}
 
 pub struct Picture {
     base_size: u32,
@@ -48,6 +55,8 @@ impl Picture {
         let cell_size = self.base_size * 2 + self.border_size * 3;
         let width = cell_size * self.schemes.len() as u32
             - (self.schemes.len() as u32 - 1) * self.border_size;
+
+        // TODO: Substraction is not required?
         let half_border = (self.border_size - 1) / 2;
         let half_size = (self.base_size - 1) / 2;
         let quarter_size = (half_size - 1) / 2;
@@ -347,13 +356,13 @@ impl Picture {
         let mut bar_layers: Vec<ShapeType> = Vec::new();
         let mut line_layers: Vec<ShapeType> = Vec::new();
 
-        let calc = self.calculate_widths(&compound.components);
-        trace!("calc: {:?}", calc);
+        let calculated_widths = self.calculate_widths(&compound.components);
+        trace!("calc: {:?}", calculated_widths.widths);
 
         let mut sums: HashMap<String, f32> = HashMap::new();
 
         // Sum up widths for each index, while checking if the index is valid
-        for (index, width) in calc {
+        for (index, width) in calculated_widths.widths {
             let actual_index = match index.parse::<usize>() {
                 Ok(value) => match self.schemes.get(value - 1) {
                     Some(_) => index,
@@ -443,6 +452,7 @@ impl Picture {
             0,
             width - 1,
             base_bar_size,
+            calculated_widths.unestimated_capacity,
             &mut bar_layers,
             &mut line_layers,
         );
@@ -459,20 +469,27 @@ impl Picture {
         start_x: u32,
         end_x: u32,
         base_bar_size: u32,
+        unestimated_capacity: bool,
         bar_layers: &mut Vec<ShapeType>,
         line_layers: &mut Vec<ShapeType>,
     ) {
         let available_width = end_x - start_x;
         let mut indices: Vec<String> = vec![];
         let mut sizes: Vec<f32> = vec![];
+        let mut unknown_substance_present = false;
         for (index, width) in &widths {
             if *width == 0f32 {
                 continue;
             }
             indices.push(index.clone());
             sizes.push(width.clone());
+
+            if index == "" {
+                unknown_substance_present = true;
+            }
         }
 
+        // Streching sizes so ln values will be bigger than 10
         while sizes
             .iter()
             .min_by(|a, b| a.partial_cmp(b).unwrap())
@@ -480,6 +497,15 @@ impl Picture {
             < &10f32
         {
             sizes = sizes.iter().map(|s| s * 10f32).collect();
+        }
+
+        // If the capacity is unestimated - we need to have unknown substance present to indicate
+        // this. It may happen that unknown substance is already present, but if not - we need to
+        // add a bit of space for it.
+        if unestimated_capacity && !unknown_substance_present {
+            indices.push("".to_string());
+            // Chosen by fair dice roll.
+            sizes.push(4f32);
         }
 
         trace!("entry_sizes: {:?}", sizes);
@@ -544,14 +570,6 @@ impl Picture {
             border_size: self.border_size,
             color: Srgba::from_color(Hsv::new(0.0, 0.0, 0.1)).into_format(),
         }));
-        line_layers.push(ShapeType::Line(Line {
-            x1: end_x,
-            y1: y_offset,
-            x2: end_x,
-            y2: y_offset + base_bar_size,
-            border_size: self.border_size,
-            color: Srgba::from_color(Hsv::new(0.0, 0.0, 0.1)).into_format(),
-        }));
 
         let mut start = start_x;
         let mut end = start_x;
@@ -583,9 +601,98 @@ impl Picture {
                 color: Srgba::from_color(Hsv::new(0.0, 0.0, 0.1)).into_format(),
             }));
         }
+
+        // Indicate "open" end of the bar.
+        if unestimated_capacity {
+            // Remove last vertical line.
+            line_layers.pop();
+
+            let half_height = (base_bar_size - 1) / 2;
+            let third_height = base_bar_size / 3;
+            let sixth_height = third_height / 2;
+
+            bar_layers.push(ShapeType::Square(Square {
+                x: end_x,
+                y: y_offset + sixth_height,
+                size: third_height,
+                orientation: Orientation::Vertical,
+                color: Srgba::new(0, 0, 0, 0),
+            }));
+
+            bar_layers.push(ShapeType::Square(Square {
+                x: end_x,
+                y: y_offset + half_height,
+                size: third_height,
+                orientation: Orientation::Vertical,
+                color: Srgba::new(0, 0, 0, 0),
+            }));
+
+            bar_layers.push(ShapeType::Square(Square {
+                x: end_x,
+                y: y_offset + half_height + third_height,
+                size: third_height,
+                orientation: Orientation::Vertical,
+                color: Srgba::new(0, 0, 0, 0),
+            }));
+
+            line_layers.push(ShapeType::Line(Line {
+                x1: end_x,
+                y1: y_offset,
+                x2: end_x - sixth_height,
+                y2: y_offset + sixth_height,
+                border_size: self.border_size,
+                color: Srgba::from_color(Hsv::new(0.0, 0.0, 0.1)).into_format(),
+            }));
+
+            line_layers.push(ShapeType::Line(Line {
+                x1: end_x - sixth_height,
+                y1: y_offset + sixth_height,
+                x2: end_x,
+                y2: y_offset + third_height,
+                border_size: self.border_size,
+                color: Srgba::from_color(Hsv::new(0.0, 0.0, 0.1)).into_format(),
+            }));
+
+            line_layers.push(ShapeType::Line(Line {
+                x1: end_x,
+                y1: y_offset + third_height,
+                x2: end_x - sixth_height,
+                y2: y_offset + half_height,
+                border_size: self.border_size,
+                color: Srgba::from_color(Hsv::new(0.0, 0.0, 0.1)).into_format(),
+            }));
+
+            line_layers.push(ShapeType::Line(Line {
+                x1: end_x - sixth_height,
+                y1: y_offset + half_height,
+                x2: end_x,
+                y2: y_offset + half_height + sixth_height,
+                border_size: self.border_size,
+                color: Srgba::from_color(Hsv::new(0.0, 0.0, 0.1)).into_format(),
+            }));
+
+            line_layers.push(ShapeType::Line(Line {
+                x1: end_x,
+                y1: y_offset + half_height + sixth_height,
+                x2: end_x - sixth_height,
+                y2: y_offset + half_height + third_height,
+                border_size: self.border_size,
+                color: Srgba::from_color(Hsv::new(0.0, 0.0, 0.1)).into_format(),
+            }));
+
+            line_layers.push(ShapeType::Line(Line {
+                x1: end_x - sixth_height,
+                y1: y_offset + half_height + third_height,
+                x2: end_x,
+                y2: y_offset + base_bar_size,
+                border_size: self.border_size,
+                color: Srgba::from_color(Hsv::new(0.0, 0.0, 0.1)).into_format(),
+            }));
+        }
     }
 
-    fn calculate_widths(&self, components: &Vec<CompoundKind>) -> Vec<(String, f32)> {
+    fn calculate_widths(&self, components: &Vec<CompoundKind>) -> WidthsResult {
+        let mut unestimated_capacity = false;
         let mut magnitudes: Vec<isize> = vec![];
         let mut content_kinds: Vec<&ContentKind> = vec![];
         let mut unknown = 0;
@@ -652,8 +759,14 @@ impl Picture {
         }
         let sum = values.iter().sum::<usize>();
         let capacity = match Content::calculate_capacity(content_kind, min_magnitude) {
-            Some(capacity) => capacity,
-            None => sum,
+            CapacityType::Absolute(capacity) => capacity,
+            CapacityType::Relative => sum,
+            CapacityType::Unestimated => {
+                // As long as this app is not calculating molar mass/volume - it is always
+                // impossible to actually know proportions of mixture.
+                unestimated_capacity = true;
+                sum
+            }
         };
 
         trace!("capacity: {}", capacity);
@@ -664,15 +777,19 @@ impl Picture {
         let mut result: Vec<(String, f32)> = vec![];
         match (unknown, sum, capacity) {
             // If taken capacity is more than 100% - every substance without content specified will
-            // be treated as addition with no representation in the bar.
+            // be treated as addition with **no representation** in the bar. (Actually its size
+            // will simply be 0).
             (_, s, c) if s >= c => {}
-            // There is some unknown substance(s) with known volume
-            (u, s, c) if u == 0 && s < c => {
-                result.push(("".to_string(), (c - s) as f32 / s as f32));
-            }
-            // There is some volume left for known substances, lets divide it between them
-            (u, s, c) if u > 0 && s < c => {
+            // There is some volume left for known SINGLE substance, lets assign it to that substance.
+            (u, s, c) if u == 1 && s < c => {
                 default_width = (c - s) as f32 / u as f32;
+            }
+            // There is some unknown substance(s) with known volume OR there are more than one
+            // known substances, lets append unknown substance do the end of the bar as indication.
+            // In case of multiple known substances - let's not try to guess - treat this as not
+            // provided.
+            (u, s, c) if u != 1 && s < c => {
+                result.push(("".to_string(), (c - s) as f32 / s as f32));
             }
             (_, _, _) => {
                 panic!("Unknown case");
@@ -680,6 +797,7 @@ impl Picture {
         }
         let sum = sum as f32;
 
+        // Final, recursive calculation of widths for each component.
         for component in components {
             match component {
                 CompoundKind::Compound(compound) => {
@@ -688,8 +806,12 @@ impl Picture {
                         None => default_width,
                     };
                     let size = size / sum;
-                    for (index, width) in self.calculate_widths(&compound.components) {
+                    let calculated = self.calculate_widths(&compound.components);
+                    for (index, width) in calculated.widths {
                         result.push((index, width * size));
+                    }
+                    if calculated.unestimated_capacity {
+                        unestimated_capacity = true;
                     }
                 }
                 CompoundKind::Substance(substance) => {
@@ -705,7 +827,10 @@ impl Picture {
                 }
             }
         }
-        result
+        WidthsResult {
+            widths: result,
+            unestimated_capacity,
+        }
     }
 }
 
@@ -760,6 +885,9 @@ impl Square {
     //
     // Be warned.
     fn draw(&self, buffer: &mut ImageBuffer<Rgba<u8>, Vec<u8>>) {
+        let max_width = buffer.width();
+        let max_height = buffer.height();
+
         let half_size = (self.size - 1) / 2;
         let start_x = self.x - half_size;
         let end_x = self.x + self.size / 2;
@@ -768,16 +896,18 @@ impl Square {
         for x in start_x..=end_x {
             for y in start_y..=end_y {
                 if self.pixel_belongs(x, y) {
-                    buffer.put_pixel(
-                        x,
-                        y,
-                        Rgba([
-                            self.color.red,
-                            self.color.green,
-                            self.color.blue,
-                            self.color.alpha,
-                        ]),
-                    );
+                    if x < max_width && y < max_height {
+                        buffer.put_pixel(
+                            x,
+                            y,
+                            Rgba([
+                                self.color.red,
+                                self.color.green,
+                                self.color.blue,
+                                self.color.alpha,
+                            ]),
+                        );
+                    }
                 }
             }
         }

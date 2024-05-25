@@ -195,6 +195,13 @@ pub enum ContentKind {
 }
 
 #[derive(Debug, Eq, PartialEq)]
+pub enum CapacityType {
+    Absolute(usize),
+    Relative,
+    Unestimated,
+}
+
+#[derive(Debug, Eq, PartialEq)]
 pub struct Content {
     pub value: usize,
     pub kind: ContentKind,
@@ -215,6 +222,7 @@ impl Content {
         if magnitude == &self.magnitude {
             return self.value;
         } else if magnitude > &self.magnitude {
+            // TODO: test this
             // It's not like it is impossible to calculate size at higher magnitude,
             // but it makes no sense in this context, so this is defensive check against it.
             panic!("Calculating size at higher magnitude is blocked");
@@ -224,28 +232,23 @@ impl Content {
     }
 
     /// TODO: Describe this
-    pub fn calculate_capacity(content_kind: &ContentKind, magnitude: &isize) -> Option<usize> {
+    pub fn calculate_capacity(content_kind: &ContentKind, magnitude: &isize) -> CapacityType {
         match content_kind {
             ContentKind::PP | ContentKind::MF => {
                 if magnitude > &1isize {
                     panic!("Magnitude too big");
                 }
-                Some(10usize.pow(-(magnitude - 2) as u32))
+                CapacityType::Absolute(10usize.pow(-(magnitude - 2) as u32))
             }
             // FIXME - add tests
             ContentKind::WV | ContentKind::WF | ContentKind::RF => {
                 if magnitude > &-1isize {
                     panic!("Magnitude too big");
                 }
-                Some(10usize.pow(-magnitude as u32))
+                CapacityType::Absolute(10usize.pow(-magnitude as u32))
             }
-            ContentKind::MR | ContentKind::MB => {
-                if magnitude > &0isize {
-                    panic!("Magnitude too big");
-                }
-                Some(10usize.pow(-(magnitude - 1) as u32) * 2)
-            }
-            ContentKind::VP => None,
+            ContentKind::VP => CapacityType::Relative,
+            ContentKind::MR | ContentKind::MB => CapacityType::Unestimated,
         }
     }
 
