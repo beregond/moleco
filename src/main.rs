@@ -1,18 +1,11 @@
-mod common;
-mod layouts;
-mod tokenize;
-
-use crate::common::Scheme;
-use crate::layouts::Picture;
 use clap::{arg, command, Parser, Subcommand};
 use clap_verbosity_flag::{Verbosity, WarnLevel};
 use image::{ImageBuffer, Rgba};
-use log::{debug, info, trace};
-use num_bigint::BigUint;
-use num_traits::Zero;
+use log::debug;
+use moleco::layouts::Picture;
+use moleco::{generate_for_inchi, generate_for_minchi, generate_scheme};
 use pretty_env_logger;
 use prettytable::{row, Table};
-use sha2::{Digest, Sha512};
 use viuer::Config;
 
 #[derive(clap::ValueEnum, Clone, Default, Debug)]
@@ -65,57 +58,6 @@ enum Commands {
     },
 }
 
-pub fn modulo(divident: &BigUint, divisor: u32) -> u32 {
-    let rest = divident % BigUint::from(divisor);
-    let mut result: u32 = 0;
-    // Since rest if always below 360, much below u32::MAX, we can safely convert it this way. I think.
-    for i in rest.iter_u32_digits() {
-        result += i;
-    }
-    result
-}
-
-fn generate_scheme(substance: String) -> Scheme {
-    let mut hasher = Sha512::new();
-    hasher.update(substance);
-    let result = hasher.finalize();
-    let mut sum: BigUint = Zero::zero();
-    for i in result.iter() {
-        sum <<= 8;
-        let step = i.clone() as u64;
-        sum += step;
-    }
-    trace!("Substance hash: {}", sum);
-    let primary_hue = modulo(&sum, 360);
-    let complementary_hue = primary_hue + 165 + modulo(&sum, 30);
-    let first_accent_hue = primary_hue + modulo(&sum, (complementary_hue - 5) - (primary_hue + 5));
-    let second_accent_hue =
-        complementary_hue + modulo(&sum, (primary_hue + 355) - (complementary_hue + 5));
-    // Normalization of hues
-    let complementary_hue = complementary_hue % 360;
-    let first_accent_hue = first_accent_hue % 360;
-    let second_accent_hue = second_accent_hue % 360;
-
-    let scheme = Scheme::new(
-        primary_hue,
-        first_accent_hue,
-        second_accent_hue,
-        complementary_hue,
-    );
-    info!("Primary hue: {}", scheme.primary.hue);
-    info!("Complementary hue: {}", scheme.complementary.hue);
-    info!("Second accent hue: {}", scheme.second_accent.hue);
-    info!("First accent hue: {}", scheme.first_accent.hue);
-    scheme
-}
-
-fn generate_for_inchi(substance: String, mut picture: Picture) -> Picture {
-    let scheme = generate_scheme(substance[6..].to_string());
-
-    picture.add_scheme(scheme);
-    picture
-}
-
 fn print_to_terminal(buffer: ImageBuffer<Rgba<u8>, Vec<u8>>) {
     let height = buffer.height();
     let img = image::DynamicImage::ImageRgba8(buffer);
@@ -126,28 +68,6 @@ fn print_to_terminal(buffer: ImageBuffer<Rgba<u8>, Vec<u8>>) {
         ..Default::default()
     };
     viuer::print(&img, &conf).expect("Image printing failed.");
-}
-
-fn generate_for_minchi(substance: String, mut picture: Picture) -> Picture {
-    let mut chunks: Vec<&str> = substance.split('/').collect();
-    if chunks.len() < 4 {
-        eprintln!("MInChI must have at least 4 parts separated by '/'.");
-        std::process::exit(exitcode::USAGE);
-    }
-    // Popping from the end, order is flipped
-    let concentration = chunks.pop().unwrap();
-    let indexing = chunks.pop().unwrap();
-
-    chunks.remove(0);
-    let structure = chunks.join("/");
-    let molecules: Vec<&str> = structure.split('&').collect();
-    for molecule in molecules {
-        let scheme = generate_scheme(molecule.to_string());
-        picture.add_scheme(scheme);
-    }
-
-    picture.add_bar(indexing.to_string(), concentration.to_string());
-    picture
 }
 
 fn main() {

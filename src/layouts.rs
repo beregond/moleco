@@ -1,7 +1,7 @@
-use crate::common::Scheme;
 use crate::tokenize::{
     generate_compound_hierarchy, Capacity, Compound, Concentration, Content, Ingredient,
 };
+use crate::Scheme;
 use image::{ImageBuffer, Rgba};
 use log::trace;
 use palette::{FromColor, Hsv, Srgba};
@@ -16,7 +16,8 @@ pub struct Picture {
     base_size: u32,
     border_size: u32,
     schemes: Vec<Scheme>,
-    bar: Option<(String, String)>,
+    // Indexing and concentration information
+    ic_info: Option<(String, String)>,
     scheme_ordering: Option<Vec<usize>>,
 }
 
@@ -26,8 +27,7 @@ impl Picture {
             base_size,
             border_size,
             schemes: Vec::new(),
-            //FIXME: such wrong name
-            bar: None,
+            ic_info: None,
             scheme_ordering: None,
         }
     }
@@ -36,12 +36,13 @@ impl Picture {
         self.schemes.push(scheme);
     }
 
-    pub fn add_bar(&mut self, indexing: String, concentration: String) {
-        self.bar = Some((indexing, concentration));
+    pub fn add_ic_info(&mut self, indexing: String, concentration: String) {
+        self.ic_info = Some((indexing, concentration));
     }
 
-    fn generate_bar(&self) -> Option<Compound> {
-        match &self.bar {
+    // TODO: This does not belong here
+    fn generate_ic_bar(&self) -> Option<Compound> {
+        match &self.ic_info {
             None => None,
             Some((indexing, concentration)) => {
                 Some(generate_compound_hierarchy(indexing, concentration))
@@ -67,7 +68,7 @@ impl Picture {
 
         let mut height = cell_size;
         let mut layers: Vec<Vec<Shape>> = Vec::new();
-        if let Some(compound) = self.generate_bar() {
+        if let Some(compound) = self.generate_ic_bar() {
             height += quarter_size * 2;
             let y_offset = cell_size + quarter_size;
             layers = self.draw_compound_bar(compound, width - half_border, y_offset, quarter_size);
