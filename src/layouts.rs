@@ -1,6 +1,6 @@
 use crate::common::Scheme;
 use crate::tokenize::{
-    generate_compound_hierarchy, Capacity, Compound, CompoundKind, Concentration, Content,
+    generate_compound_hierarchy, Capacity, Compound, Concentration, Content, Ingredient,
 };
 use image::{ImageBuffer, Rgba};
 use log::trace;
@@ -356,7 +356,7 @@ impl Picture {
         let mut bar_layers: Vec<Shape> = Vec::new();
         let mut line_layers: Vec<Shape> = Vec::new();
 
-        let calculated_widths = self.calculate_widths(&compound.components);
+        let calculated_widths = self.calculate_widths(&compound.ingredients);
         trace!("calc: {:?}", calculated_widths.widths);
 
         let mut sums: HashMap<String, f32> = HashMap::new();
@@ -691,14 +691,14 @@ impl Picture {
         }
     }
 
-    fn calculate_widths(&self, components: &Vec<CompoundKind>) -> WidthsResult {
+    fn calculate_widths(&self, components: &Vec<Ingredient>) -> WidthsResult {
         let mut unestimated_capacity = false;
         let mut magnitudes: Vec<isize> = vec![];
         let mut concentrations: Vec<&Concentration> = vec![];
         let mut unknown = 0;
         for component in components {
             match component {
-                CompoundKind::Compound(compound) => match &compound.content {
+                Ingredient::Compound(compound) => match &compound.content {
                     Some(content) => {
                         concentrations.push(&content.concentration);
                         magnitudes.push(content.magnitude);
@@ -707,7 +707,7 @@ impl Picture {
                         unknown += 1;
                     }
                 },
-                CompoundKind::Substance(substance) => match &substance.content {
+                Ingredient::Substance(substance) => match &substance.content {
                     Some(content) => {
                         concentrations.push(&content.concentration);
                         magnitudes.push(content.magnitude);
@@ -747,11 +747,11 @@ impl Picture {
         let mut values: Vec<usize> = vec![];
         for component in components {
             match component {
-                CompoundKind::Compound(compound) => match &compound.content {
+                Ingredient::Compound(compound) => match &compound.content {
                     Some(content) => values.push(content.value_at_magnitude(min_magnitude)),
                     None => {}
                 },
-                CompoundKind::Substance(substance) => match &substance.content {
+                Ingredient::Substance(substance) => match &substance.content {
                     Some(content) => values.push(content.value_at_magnitude(min_magnitude)),
                     None => {}
                 },
@@ -800,13 +800,13 @@ impl Picture {
         // Final, recursive calculation of widths for each component.
         for component in components {
             match component {
-                CompoundKind::Compound(compound) => {
+                Ingredient::Compound(compound) => {
                     let size = match &compound.content {
                         Some(content) => content.value_at_magnitude(min_magnitude) as f32,
                         None => default_width,
                     };
                     let size = size / sum;
-                    let calculated = self.calculate_widths(&compound.components);
+                    let calculated = self.calculate_widths(&compound.ingredients);
                     for (index, width) in calculated.widths {
                         result.push((index, width * size));
                     }
@@ -814,7 +814,7 @@ impl Picture {
                         unestimated_capacity = true;
                     }
                 }
-                CompoundKind::Substance(substance) => {
+                Ingredient::Substance(substance) => {
                     let size = match &substance.content {
                         Some(content) => content.value_at_magnitude(min_magnitude) as f32,
                         None => default_width,

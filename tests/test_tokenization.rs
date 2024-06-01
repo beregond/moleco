@@ -1,6 +1,6 @@
 use moleco::tokenize::{
-    generate_compound_hierarchy, tokenize_string, Component, Compound, CompoundKind, Concentration,
-    Content, Group, Substance, Token,
+    generate_compound_hierarchy, tokenize_string, Component, Compound, Concentration, Content,
+    Group, Ingredient, Substance, Token,
 };
 
 // source: http://molmatinf.com/minchidemo/
@@ -164,23 +164,23 @@ fn test_tokenization_9() {
     tokenize_string("n{1&2}}&{3&4}", 'n');
 }
 
-fn c(components: Vec<CompoundKind>, content: Option<String>) -> CompoundKind {
+fn c(ingredients: Vec<Ingredient>, content: Option<String>) -> Ingredient {
     let content = match content {
         Some(c) => Some(Content::from_str(&c).unwrap()),
         None => None,
     };
-    CompoundKind::Compound(Compound {
-        components,
+    Ingredient::Compound(Compound {
+        ingredients,
         content,
     })
 }
 
-fn s(index: Option<String>, content: Option<String>) -> CompoundKind {
+fn s(index: Option<String>, content: Option<String>) -> Ingredient {
     let content = match content {
         Some(c) => Some(Content::from_str(&c).unwrap()),
         None => None,
     };
-    CompoundKind::Substance(Substance { index, content })
+    Ingredient::Substance(Substance { index, content })
 }
 
 #[test]
@@ -190,7 +190,7 @@ fn test_hierarchy_1() {
     assert_eq!(
         hierarchy,
         Compound {
-            components: vec![
+            ingredients: vec![
                 c(
                     vec![
                         s(Some("1".to_string()), Some("37wf-2".to_string())),
@@ -212,7 +212,7 @@ fn test_hierarchy_2() {
     assert_eq!(
         hierarchy,
         Compound {
-            components: vec![
+            ingredients: vec![
                 s(Some("6".to_string()), Some("1mr0".to_string())),
                 c(
                     vec![
@@ -282,7 +282,7 @@ fn test_hierarchy_and_computation() {
     assert_eq!(
         hierarchy,
         Compound {
-            components: vec![
+            ingredients: vec![
                 s(Some("4".to_string()), Some("807wf-3".to_string())),
                 c(
                     vec![

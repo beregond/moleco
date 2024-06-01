@@ -38,12 +38,3 @@ impl Scheme {
         }
     }
 }
-
-#[derive(clap::ValueEnum, Clone, Default, Debug)]
-pub enum Format {
-    #[default]
-    Table,
-    Json,
-    Yaml,
-    Csv,
-}

@@ -32,7 +32,7 @@ pub fn tokenize_string(input: &str, start: char) -> Group {
     }
     let mut new_input: String = iter.collect();
 
-    // Check if parentheses are matching and if first/last character is '{' and '}'
+    // Check if first and last character is '{' and '}'
     let len = new_input.len();
     let ends_with_paren = match len {
         l if l > 0 => match new_input.get(len - 1..) {
@@ -48,7 +48,7 @@ pub fn tokenize_string(input: &str, start: char) -> Group {
     };
 
     // Check if parentheses are matching
-    // Also check if the first group is covering the entire payload
+    // Also check if the first group is covering the entire payload (and thus is obsolete)
     let mut first_group_is_covering_entire_payload = true;
     let mut level_indicator = 0;
     while let Some(&c) = iter.peek() {
@@ -76,7 +76,7 @@ pub fn tokenize_string(input: &str, start: char) -> Group {
         panic!("Unmatching parentheses in input {}", input);
     }
 
-    // Magic to remove the first and last character if they are '{' and '}' and the group is covering the entire payload
+    // Remove the first and last character if they are '{' and '}' and the group is covering the entire payload
     if starts_with_paren && ends_with_paren && first_group_is_covering_entire_payload {
         new_input = new_input.get(1..len - 1).unwrap().to_string();
     }
@@ -240,7 +240,6 @@ impl Content {
                 }
                 Capacity::Absolute(10usize.pow(-(magnitude - 2) as u32))
             }
-            // FIXME - add tests
             Concentration::WV | Concentration::WF | Concentration::RF => {
                 if magnitude > &-1isize {
                     panic!("Magnitude too big");
@@ -322,7 +321,7 @@ fn split_payload(payload: &str) -> Result<(usize, Concentration, isize), String>
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Compound {
-    pub components: Vec<CompoundKind>,
+    pub ingredients: Vec<Ingredient>,
     pub content: Option<Content>,
 }
 
@@ -333,7 +332,7 @@ pub struct Substance {
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub enum CompoundKind {
+pub enum Ingredient {
     Compound(Compound),
     Substance(Substance),
 }
@@ -346,7 +345,10 @@ pub fn generate_compound_hierarchy(indexing: &str, concentration: &str) -> Compo
 
 fn combine_groups(indexing_group: &Group, concentration_group: &Group) -> Compound {
     Compound {
-        components: combine_components(&indexing_group.components, &concentration_group.components),
+        ingredients: combine_components(
+            &indexing_group.components,
+            &concentration_group.components,
+        ),
         content: match &concentration_group.value {
             Some(v) => Some(Content::from_str(&v).unwrap()),
             None => None,
@@ -357,16 +359,16 @@ fn combine_groups(indexing_group: &Group, concentration_group: &Group) -> Compou
 fn combine_components(
     indexing_components: &Vec<Component>,
     concentration_components: &Vec<Component>,
-) -> Vec<CompoundKind> {
+) -> Vec<Ingredient> {
     let mut combined_components = Vec::new();
     assert_eq!(indexing_components.len(), concentration_components.len());
     for i in 0..indexing_components.len() {
         match (&indexing_components[i], &concentration_components[i]) {
             (Component::Token(t1), Component::Token(t2)) => {
-                combined_components.push(CompoundKind::Substance(create_substance(t1, t2)));
+                combined_components.push(Ingredient::Substance(create_substance(t1, t2)));
             }
             (Component::Group(g1), Component::Group(g2)) => {
-                combined_components.push(CompoundKind::Compound(combine_groups(g1, g2)));
+                combined_components.push(Ingredient::Compound(combine_groups(g1, g2)));
             }
             _ => panic!("Mismatched components"),
         }

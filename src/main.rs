@@ -2,7 +2,7 @@ mod common;
 mod layouts;
 mod tokenize;
 
-use crate::common::{Format, Scheme};
+use crate::common::Scheme;
 use crate::layouts::Picture;
 use clap::{arg, command, Parser, Subcommand};
 use clap_verbosity_flag::{Verbosity, WarnLevel};
@@ -14,6 +14,15 @@ use pretty_env_logger;
 use prettytable::{row, Table};
 use sha2::{Digest, Sha512};
 use viuer::Config;
+
+#[derive(clap::ValueEnum, Clone, Default, Debug)]
+pub enum Format {
+    #[default]
+    Table,
+    Json,
+    Yaml,
+    Csv,
+}
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
