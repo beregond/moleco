@@ -1,6 +1,6 @@
 use crate::common::Scheme;
 use crate::tokenize::{
-    generate_compound_hierarchy, CapacityType, Compound, CompoundKind, Content, ContentKind,
+    generate_compound_hierarchy, Capacity, Compound, CompoundKind, Concentration, Content,
 };
 use image::{ImageBuffer, Rgba};
 use log::trace;
@@ -66,7 +66,7 @@ impl Picture {
         trace!("half_size: {}", half_border);
 
         let mut height = cell_size;
-        let mut layers: Vec<Vec<ShapeType>> = Vec::new();
+        let mut layers: Vec<Vec<Shape>> = Vec::new();
         if let Some(compound) = self.generate_bar() {
             height += quarter_size * 2;
             let y_offset = cell_size + quarter_size;
@@ -93,30 +93,30 @@ impl Picture {
             let first_accent = scheme.first_accent.srgb;
             let second_accent = scheme.second_accent.srgb;
             let complementary = scheme.complementary.srgb;
-            let mut base_color: Vec<ShapeType> = Vec::new();
+            let mut base_color: Vec<Shape> = Vec::new();
 
-            base_color.push(ShapeType::Square(Square {
+            base_color.push(Shape::Square(Square {
                 x: offset + self.base_size + self.border_size + half_border,
                 y: half_size + self.border_size,
                 size: self.base_size,
                 orientation: Orientation::Vertical,
                 color: primary.into(),
             }));
-            base_color.push(ShapeType::Square(Square {
+            base_color.push(Shape::Square(Square {
                 x: offset + half_size + self.border_size,
                 y: self.base_size + self.border_size + half_border,
                 size: self.base_size,
                 orientation: Orientation::Vertical,
                 color: first_accent.into(),
             }));
-            base_color.push(ShapeType::Square(Square {
+            base_color.push(Shape::Square(Square {
                 x: offset + self.base_size + half_size + self.border_size * 2,
                 y: self.base_size + self.border_size + half_border,
                 size: self.base_size,
                 orientation: Orientation::Vertical,
                 color: second_accent.into(),
             }));
-            base_color.push(ShapeType::Square(Square {
+            base_color.push(Shape::Square(Square {
                 x: offset + self.base_size + self.border_size + half_border,
                 y: self.base_size + half_size + self.border_size * 2,
                 size: self.base_size,
@@ -125,9 +125,9 @@ impl Picture {
             }));
             layers.push(base_color);
 
-            let mut base_lines: Vec<ShapeType> = Vec::new();
+            let mut base_lines: Vec<Shape> = Vec::new();
             // Cross - left top to right bottom
-            base_lines.push(ShapeType::Line(Line {
+            base_lines.push(Shape::Line(Line {
                 x1: offset + half_size + self.border_size,
                 y1: half_size + self.border_size,
                 x2: offset + self.base_size + half_size + self.border_size * 2,
@@ -136,7 +136,7 @@ impl Picture {
                 color: border_color,
             }));
             // Cross - left bottom to right top
-            base_lines.push(ShapeType::Line(Line {
+            base_lines.push(Shape::Line(Line {
                 x1: offset + half_size + self.border_size,
                 y1: self.base_size + half_size + self.border_size * 2,
                 x2: offset + self.base_size + half_size + self.border_size * 2,
@@ -144,7 +144,7 @@ impl Picture {
                 border_size: self.border_size,
                 color: border_color,
             }));
-            base_lines.push(ShapeType::Line(Line {
+            base_lines.push(Shape::Line(Line {
                 x1: offset + half_border,
                 y1: self.base_size + self.border_size + half_border,
                 x2: offset + self.base_size + self.border_size + half_border,
@@ -152,7 +152,7 @@ impl Picture {
                 border_size: self.border_size,
                 color: border_color,
             }));
-            base_lines.push(ShapeType::Line(Line {
+            base_lines.push(Shape::Line(Line {
                 x1: offset + self.base_size + self.border_size + half_border,
                 y1: half_border,
                 x2: offset + self.base_size * 2 + self.border_size * 2 + half_border,
@@ -160,7 +160,7 @@ impl Picture {
                 border_size: self.border_size,
                 color: border_color,
             }));
-            base_lines.push(ShapeType::Line(Line {
+            base_lines.push(Shape::Line(Line {
                 x1: offset + self.base_size * 2 + self.border_size * 2 + half_border,
                 y1: self.base_size + self.border_size + half_border,
                 x2: offset + self.base_size + self.border_size + half_border,
@@ -168,7 +168,7 @@ impl Picture {
                 border_size: self.border_size,
                 color: border_color,
             }));
-            base_lines.push(ShapeType::Line(Line {
+            base_lines.push(Shape::Line(Line {
                 x1: offset + half_border,
                 y1: self.base_size + self.border_size + half_border,
                 x2: offset + self.base_size + self.border_size + half_border,
@@ -178,9 +178,9 @@ impl Picture {
             }));
             layers.push(base_lines);
 
-            let mut cutouts: Vec<ShapeType> = Vec::new();
+            let mut cutouts: Vec<Shape> = Vec::new();
             // Central cutout
-            cutouts.push(ShapeType::Square(Square {
+            cutouts.push(Shape::Square(Square {
                 x: offset + self.base_size + self.border_size + half_border,
                 y: self.base_size + self.border_size + half_border,
                 size: quarter_size,
@@ -188,7 +188,7 @@ impl Picture {
                 color: eraser,
             }));
             // Left top cutout
-            cutouts.push(ShapeType::Square(Square {
+            cutouts.push(Shape::Square(Square {
                 x: offset + half_size + self.border_size,
                 y: half_size + self.border_size,
                 size: quarter_size,
@@ -196,7 +196,7 @@ impl Picture {
                 color: eraser,
             }));
             // Right bottom cutout
-            cutouts.push(ShapeType::Square(Square {
+            cutouts.push(Shape::Square(Square {
                 x: offset + self.base_size + half_size + self.border_size * 2,
                 y: self.base_size + half_size + self.border_size * 2,
                 size: quarter_size,
@@ -204,7 +204,7 @@ impl Picture {
                 color: eraser,
             }));
             // Left bottom cutout
-            cutouts.push(ShapeType::Square(Square {
+            cutouts.push(Shape::Square(Square {
                 x: offset + half_size + self.border_size,
                 y: self.base_size + half_size + self.border_size * 2,
                 size: quarter_size,
@@ -212,7 +212,7 @@ impl Picture {
                 color: eraser,
             }));
             // Right top cutout
-            cutouts.push(ShapeType::Square(Square {
+            cutouts.push(Shape::Square(Square {
                 x: offset + self.base_size + half_size + self.border_size * 2,
                 y: half_size + self.border_size,
                 size: quarter_size,
@@ -221,9 +221,9 @@ impl Picture {
             }));
 
             layers.push(cutouts);
-            let mut inner_border: Vec<ShapeType> = Vec::new();
+            let mut inner_border: Vec<Shape> = Vec::new();
             // Left top cutout borders
-            inner_border.push(ShapeType::Line(Line {
+            inner_border.push(Shape::Line(Line {
                 x1: offset + half_size + self.border_size + eight_size,
                 y1: half_size + self.border_size - eight_size,
                 x2: offset + half_size + self.border_size + eight_size,
@@ -231,7 +231,7 @@ impl Picture {
                 border_size: self.border_size,
                 color: border_color,
             }));
-            inner_border.push(ShapeType::Line(Line {
+            inner_border.push(Shape::Line(Line {
                 x1: offset + half_size + self.border_size - eight_size,
                 y1: half_size + self.border_size + eight_size,
                 x2: offset + half_size + self.border_size + eight_size,
@@ -241,7 +241,7 @@ impl Picture {
             }));
 
             // Right bottom cutout borders
-            inner_border.push(ShapeType::Line(Line {
+            inner_border.push(Shape::Line(Line {
                 x1: offset + self.base_size + half_size + self.border_size * 2 - eight_size,
                 y1: self.base_size + half_size + self.border_size * 2 - eight_size,
                 x2: offset + self.base_size + half_size + self.border_size * 2 + eight_size,
@@ -249,7 +249,7 @@ impl Picture {
                 border_size: self.border_size,
                 color: border_color,
             }));
-            inner_border.push(ShapeType::Line(Line {
+            inner_border.push(Shape::Line(Line {
                 x1: offset + self.base_size + half_size + self.border_size * 2 - eight_size,
                 y1: self.base_size + half_size + self.border_size * 2 - eight_size,
                 x2: offset + self.base_size + half_size + self.border_size * 2 - eight_size,
@@ -259,7 +259,7 @@ impl Picture {
             }));
 
             // Left bottom cutout borders
-            inner_border.push(ShapeType::Line(Line {
+            inner_border.push(Shape::Line(Line {
                 x1: offset + half_size + self.border_size - eight_size,
                 y1: self.base_size + half_size + self.border_size * 2 - eight_size,
                 x2: offset + half_size + self.border_size + eight_size,
@@ -267,7 +267,7 @@ impl Picture {
                 border_size: self.border_size,
                 color: border_color,
             }));
-            inner_border.push(ShapeType::Line(Line {
+            inner_border.push(Shape::Line(Line {
                 x1: offset + half_size + self.border_size + eight_size,
                 y1: self.base_size + half_size + self.border_size * 2 - eight_size,
                 x2: offset + half_size + self.border_size + eight_size,
@@ -277,7 +277,7 @@ impl Picture {
             }));
 
             // Right top cutout borders
-            inner_border.push(ShapeType::Line(Line {
+            inner_border.push(Shape::Line(Line {
                 x1: offset + self.base_size + half_size + self.border_size * 2 - eight_size,
                 y1: half_size + self.border_size - eight_size,
                 x2: offset + self.base_size + half_size + self.border_size * 2 - eight_size,
@@ -285,7 +285,7 @@ impl Picture {
                 border_size: self.border_size,
                 color: border_color,
             }));
-            inner_border.push(ShapeType::Line(Line {
+            inner_border.push(Shape::Line(Line {
                 x1: offset + self.base_size + half_size + self.border_size * 2 - eight_size,
                 y1: half_size + self.border_size + eight_size,
                 x2: offset + self.base_size + half_size + self.border_size * 2 + eight_size,
@@ -295,7 +295,7 @@ impl Picture {
             }));
 
             // Central cutout borders
-            inner_border.push(ShapeType::Line(Line {
+            inner_border.push(Shape::Line(Line {
                 x1: offset + self.base_size + self.border_size + half_border - eight_size,
                 y1: self.base_size + self.border_size + half_border - eight_size,
                 x2: offset + self.base_size + self.border_size + half_border + eight_size,
@@ -303,7 +303,7 @@ impl Picture {
                 border_size: self.border_size,
                 color: border_color,
             }));
-            inner_border.push(ShapeType::Line(Line {
+            inner_border.push(Shape::Line(Line {
                 x1: offset + self.base_size + self.border_size + half_border - eight_size,
                 y1: self.base_size + self.border_size + half_border - eight_size,
                 x2: offset + self.base_size + self.border_size + half_border - eight_size,
@@ -311,7 +311,7 @@ impl Picture {
                 border_size: self.border_size,
                 color: border_color,
             }));
-            inner_border.push(ShapeType::Line(Line {
+            inner_border.push(Shape::Line(Line {
                 x1: offset + self.base_size + self.border_size + half_border - eight_size,
                 y1: self.base_size + self.border_size + half_border + eight_size,
                 x2: offset + self.base_size + self.border_size + half_border + eight_size,
@@ -319,7 +319,7 @@ impl Picture {
                 border_size: self.border_size,
                 color: border_color,
             }));
-            inner_border.push(ShapeType::Line(Line {
+            inner_border.push(Shape::Line(Line {
                 x1: offset + self.base_size + self.border_size + half_border + eight_size,
                 y1: self.base_size + self.border_size + half_border - eight_size,
                 x2: offset + self.base_size + self.border_size + half_border + eight_size,
@@ -336,9 +336,9 @@ impl Picture {
         for layer in &layers {
             for shape in layer {
                 match shape {
-                    ShapeType::Square(square) => square.draw(&mut buffer),
-                    ShapeType::Line(line) => line.draw(&mut buffer),
-                    ShapeType::Rectangle(rectangle) => rectangle.draw(&mut buffer),
+                    Shape::Square(square) => square.draw(&mut buffer),
+                    Shape::Line(line) => line.draw(&mut buffer),
+                    Shape::Rectangle(rectangle) => rectangle.draw(&mut buffer),
                 }
             }
         }
@@ -351,10 +351,10 @@ impl Picture {
         width: u32,
         y_offset: u32,
         base_bar_size: u32,
-    ) -> Vec<Vec<ShapeType>> {
-        let mut layers: Vec<Vec<ShapeType>> = Vec::new();
-        let mut bar_layers: Vec<ShapeType> = Vec::new();
-        let mut line_layers: Vec<ShapeType> = Vec::new();
+    ) -> Vec<Vec<Shape>> {
+        let mut layers: Vec<Vec<Shape>> = Vec::new();
+        let mut bar_layers: Vec<Shape> = Vec::new();
+        let mut line_layers: Vec<Shape> = Vec::new();
 
         let calculated_widths = self.calculate_widths(&compound.components);
         trace!("calc: {:?}", calculated_widths.widths);
@@ -470,8 +470,8 @@ impl Picture {
         end_x: u32,
         base_bar_size: u32,
         unestimated_capacity: bool,
-        bar_layers: &mut Vec<ShapeType>,
-        line_layers: &mut Vec<ShapeType>,
+        bar_layers: &mut Vec<Shape>,
+        line_layers: &mut Vec<Shape>,
     ) {
         let available_width = end_x - start_x;
         let mut indices: Vec<String> = vec![];
@@ -546,7 +546,7 @@ impl Picture {
 
         trace!("actual_sizes: {:?}", actual_sizes);
 
-        line_layers.push(ShapeType::Line(Line {
+        line_layers.push(Shape::Line(Line {
             x1: start_x,
             y1: y_offset,
             x2: end_x,
@@ -554,7 +554,7 @@ impl Picture {
             border_size: self.border_size,
             color: Srgba::from_color(Hsv::new(0.0, 0.0, 0.1)).into_format(),
         }));
-        line_layers.push(ShapeType::Line(Line {
+        line_layers.push(Shape::Line(Line {
             x1: start_x,
             y1: y_offset,
             x2: start_x,
@@ -562,7 +562,7 @@ impl Picture {
             border_size: self.border_size,
             color: Srgba::from_color(Hsv::new(0.0, 0.0, 0.1)).into_format(),
         }));
-        line_layers.push(ShapeType::Line(Line {
+        line_layers.push(Shape::Line(Line {
             x1: start_x,
             y1: y_offset + base_bar_size,
             x2: end_x,
@@ -582,7 +582,7 @@ impl Picture {
                 Ok(value) => self.schemes[value - 1].primary.srgb.into(),
                 Err(_) => Srgba::from_color(Hsv::new(0.0, 0.0, 0.8)).into_format(),
             };
-            bar_layers.push(ShapeType::Rectangle(Rectangle {
+            bar_layers.push(Shape::Rectangle(Rectangle {
                 x: start,
                 y: y_offset,
                 width: end - start,
@@ -592,7 +592,7 @@ impl Picture {
 
             start = end;
             step_index += 1;
-            line_layers.push(ShapeType::Line(Line {
+            line_layers.push(Shape::Line(Line {
                 x1: start,
                 y1: y_offset,
                 x2: start,
@@ -611,7 +611,7 @@ impl Picture {
             let third_height = base_bar_size / 3;
             let sixth_height = third_height / 2;
 
-            bar_layers.push(ShapeType::Square(Square {
+            bar_layers.push(Shape::Square(Square {
                 x: end_x,
                 y: y_offset + sixth_height,
                 size: third_height,
@@ -619,7 +619,7 @@ impl Picture {
                 color: Srgba::new(0, 0, 0, 0),
             }));
 
-            bar_layers.push(ShapeType::Square(Square {
+            bar_layers.push(Shape::Square(Square {
                 x: end_x,
                 y: y_offset + half_height,
                 size: third_height,
@@ -627,7 +627,7 @@ impl Picture {
                 color: Srgba::new(0, 0, 0, 0),
             }));
 
-            bar_layers.push(ShapeType::Square(Square {
+            bar_layers.push(Shape::Square(Square {
                 x: end_x,
                 y: y_offset + half_height + third_height,
                 size: third_height,
@@ -635,7 +635,7 @@ impl Picture {
                 color: Srgba::new(0, 0, 0, 0),
             }));
 
-            line_layers.push(ShapeType::Line(Line {
+            line_layers.push(Shape::Line(Line {
                 x1: end_x,
                 y1: y_offset,
                 x2: end_x - sixth_height,
@@ -644,7 +644,7 @@ impl Picture {
                 color: Srgba::from_color(Hsv::new(0.0, 0.0, 0.1)).into_format(),
             }));
 
-            line_layers.push(ShapeType::Line(Line {
+            line_layers.push(Shape::Line(Line {
                 x1: end_x - sixth_height,
                 y1: y_offset + sixth_height,
                 x2: end_x,
@@ -653,7 +653,7 @@ impl Picture {
                 color: Srgba::from_color(Hsv::new(0.0, 0.0, 0.1)).into_format(),
             }));
 
-            line_layers.push(ShapeType::Line(Line {
+            line_layers.push(Shape::Line(Line {
                 x1: end_x,
                 y1: y_offset + third_height,
                 x2: end_x - sixth_height,
@@ -662,7 +662,7 @@ impl Picture {
                 color: Srgba::from_color(Hsv::new(0.0, 0.0, 0.1)).into_format(),
             }));
 
-            line_layers.push(ShapeType::Line(Line {
+            line_layers.push(Shape::Line(Line {
                 x1: end_x - sixth_height,
                 y1: y_offset + half_height,
                 x2: end_x,
@@ -671,7 +671,7 @@ impl Picture {
                 color: Srgba::from_color(Hsv::new(0.0, 0.0, 0.1)).into_format(),
             }));
 
-            line_layers.push(ShapeType::Line(Line {
+            line_layers.push(Shape::Line(Line {
                 x1: end_x,
                 y1: y_offset + half_height + sixth_height,
                 x2: end_x - sixth_height,
@@ -680,7 +680,7 @@ impl Picture {
                 color: Srgba::from_color(Hsv::new(0.0, 0.0, 0.1)).into_format(),
             }));
 
-            line_layers.push(ShapeType::Line(Line {
+            line_layers.push(Shape::Line(Line {
                 x1: end_x - sixth_height,
                 y1: y_offset + half_height + third_height,
                 x2: end_x,
@@ -694,13 +694,13 @@ impl Picture {
     fn calculate_widths(&self, components: &Vec<CompoundKind>) -> WidthsResult {
         let mut unestimated_capacity = false;
         let mut magnitudes: Vec<isize> = vec![];
-        let mut content_kinds: Vec<&ContentKind> = vec![];
+        let mut concentrations: Vec<&Concentration> = vec![];
         let mut unknown = 0;
         for component in components {
             match component {
                 CompoundKind::Compound(compound) => match &compound.content {
                     Some(content) => {
-                        content_kinds.push(&content.kind);
+                        concentrations.push(&content.concentration);
                         magnitudes.push(content.magnitude);
                     }
                     None => {
@@ -709,7 +709,7 @@ impl Picture {
                 },
                 CompoundKind::Substance(substance) => match &substance.content {
                     Some(content) => {
-                        content_kinds.push(&content.kind);
+                        concentrations.push(&content.concentration);
                         magnitudes.push(content.magnitude);
                     }
                     None => {
@@ -719,23 +719,23 @@ impl Picture {
             }
         }
 
-        let mut seen_kinds: Vec<&ContentKind> = vec![];
-        for kind in &content_kinds {
-            if seen_kinds.contains(kind) {
+        let mut seen_concentrations: Vec<&Concentration> = vec![];
+        for concentration in &concentrations {
+            if seen_concentrations.contains(concentration) {
                 continue;
             }
-            seen_kinds.push(kind);
+            seen_concentrations.push(concentration);
         }
-        if seen_kinds.len() > 1 {
+        if seen_concentrations.len() > 1 {
             panic!(
-                "Different content kinds in one mixture, only one is allowed - {:?}",
-                seen_kinds
+                "Different concentrations in one mixture, only one is allowed - {:?}",
+                seen_concentrations
             );
         }
         // TODO Where is check if there is at least one?
-        let content_kind = seen_kinds[0];
+        let concentration = seen_concentrations[0];
 
-        match Content::maximum_viable_magnitude(content_kind) {
+        match Content::maximum_viable_magnitude(concentration) {
             Some(max_level) => {
                 magnitudes.push(max_level);
             }
@@ -758,10 +758,10 @@ impl Picture {
             }
         }
         let sum = values.iter().sum::<usize>();
-        let capacity = match Content::calculate_capacity(content_kind, min_magnitude) {
-            CapacityType::Absolute(capacity) => capacity,
-            CapacityType::Relative => sum,
-            CapacityType::Unestimated => {
+        let capacity = match Content::calculate_capacity(concentration, min_magnitude) {
+            Capacity::Absolute(capacity) => capacity,
+            Capacity::Relative => sum,
+            Capacity::Unestimated => {
                 // As long as this app is not calculating molar mass/volume - it is always
                 // impossible to actually know proportions of mixture.
                 unestimated_capacity = true;
@@ -1015,7 +1015,7 @@ impl Line {
     }
 }
 
-enum ShapeType {
+enum Shape {
     Square(Square),
     Rectangle(Rectangle),
     Line(Line),

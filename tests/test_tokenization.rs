@@ -1,6 +1,6 @@
 use moleco::tokenize::{
-    generate_compound_hierarchy, tokenize_string, ComponentKind, Compound, CompoundKind, Content,
-    ContentKind, Group, Substance, Token,
+    generate_compound_hierarchy, tokenize_string, Component, Compound, CompoundKind, Concentration,
+    Content, Group, Substance, Token,
 };
 
 // source: http://molmatinf.com/minchidemo/
@@ -19,18 +19,18 @@ static DISHWASHING_LIQUID: &str =
     1H3,(H,19,20,21);/q;+1/p-1&ClH.Na/h1H;/q;+1/p-1&H2O/h1H2/n{4&{2&4}&&{1&4}&3}/g{807wf-3&{6pp1&4pp1}\
     117wf-3&1wf-2&{27pp0&73pp0}66wf-3&}";
 
-fn t(value: &str) -> ComponentKind {
-    ComponentKind::Token(Token {
+fn t(value: &str) -> Component {
+    Component::Token(Token {
         value: value.to_string(),
     })
 }
 
-fn g(components: Vec<ComponentKind>, value: Option<String>) -> Group {
+fn g(components: Vec<Component>, value: Option<String>) -> Group {
     Group { components, value }
 }
 
-fn gk(components: Vec<ComponentKind>, value: Option<String>) -> ComponentKind {
-    ComponentKind::Group(Group { components, value })
+fn gk(components: Vec<Component>, value: Option<String>) -> Component {
+    Component::Group(Group { components, value })
 }
 
 fn get_formaldehyde_ic() -> (&'static str, &'static str) {
@@ -243,7 +243,7 @@ fn test_content_parsing() {
         content,
         Content {
             value: 66,
-            kind: ContentKind::WF,
+            concentration: Concentration::WF,
             magnitude: -3,
         }
     );
@@ -256,7 +256,7 @@ fn test_content_parsing_range() {
         content,
         Content {
             value: 6,
-            kind: ContentKind::WF,
+            concentration: Concentration::WF,
             magnitude: -3,
         }
     );
@@ -269,7 +269,7 @@ fn test_content_parsing_range_2() {
         content,
         Content {
             value: 3,
-            kind: ContentKind::PP,
+            concentration: Concentration::PP,
             magnitude: 0,
         }
     );

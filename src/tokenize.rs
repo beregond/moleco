@@ -3,7 +3,7 @@ use std::str::Chars;
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Group {
-    pub components: Vec<ComponentKind>,
+    pub components: Vec<Component>,
     pub value: Option<String>,
 }
 
@@ -13,7 +13,7 @@ pub struct Token {
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub enum ComponentKind {
+pub enum Component {
     Token(Token),
     Group(Group),
 }
@@ -91,7 +91,7 @@ fn parse_group(iter: &mut Peekable<Chars>) -> Group {
 
     // Case fot the empty string
     if iter.peek().is_none() {
-        components.push(ComponentKind::Token(Token {
+        components.push(Component::Token(Token {
             value: "".to_string(),
         }));
     }
@@ -100,7 +100,7 @@ fn parse_group(iter: &mut Peekable<Chars>) -> Group {
         match c {
             '&' => {
                 if !current_token.is_empty() {
-                    components.push(ComponentKind::Token(Token {
+                    components.push(Component::Token(Token {
                         value: current_token,
                     }));
                     current_token = String::new();
@@ -110,13 +110,13 @@ fn parse_group(iter: &mut Peekable<Chars>) -> Group {
                 match iter.peek() {
                     // Case for & at the end of the group or payload (e.g. "n{1&{2&}}")
                     Some(&'}') | None => {
-                        components.push(ComponentKind::Token(Token {
+                        components.push(Component::Token(Token {
                             value: "".to_string(),
                         }));
                     }
                     // Case for groupped &&
                     Some(&'&') => {
-                        components.push(ComponentKind::Token(Token {
+                        components.push(Component::Token(Token {
                             value: "".to_string(),
                         }));
                     }
@@ -125,12 +125,12 @@ fn parse_group(iter: &mut Peekable<Chars>) -> Group {
             }
             '{' => {
                 iter.next();
-                components.push(ComponentKind::Group(parse_group(iter)));
+                components.push(Component::Group(parse_group(iter)));
             }
             '}' => {
                 iter.next();
                 if !current_token.is_empty() {
-                    components.push(ComponentKind::Token(Token {
+                    components.push(Component::Token(Token {
                         value: current_token,
                     }));
                     current_token = String::new();
@@ -162,7 +162,7 @@ fn parse_group(iter: &mut Peekable<Chars>) -> Group {
 
     // Add any remaining token
     if !current_token.is_empty() {
-        components.push(ComponentKind::Token(Token {
+        components.push(Component::Token(Token {
             value: current_token,
         }));
     }
@@ -174,7 +174,7 @@ fn parse_group(iter: &mut Peekable<Chars>) -> Group {
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub enum ContentKind {
+pub enum Concentration {
     // To get idea what those infixes do, check cauculate_capacity function
     /// Parts per N, 51pp0 equals 51 percent, 5pp1 equals 50 percent
     PP,
@@ -195,7 +195,7 @@ pub enum ContentKind {
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub enum CapacityType {
+pub enum Capacity {
     Absolute(usize),
     Relative,
     Unestimated,
@@ -204,16 +204,16 @@ pub enum CapacityType {
 #[derive(Debug, Eq, PartialEq)]
 pub struct Content {
     pub value: usize,
-    pub kind: ContentKind,
+    pub concentration: Concentration,
     pub magnitude: isize,
 }
 
 impl Content {
     pub fn from_str(payload: &str) -> Result<Self, &str> {
-        let (value, kind, magnitude) = split_payload(payload).unwrap();
+        let (value, concentration, magnitude) = split_payload(payload).unwrap();
         Ok(Self {
             value,
-            kind,
+            concentration,
             magnitude,
         })
     }
@@ -232,49 +232,49 @@ impl Content {
     }
 
     /// TODO: Describe this
-    pub fn calculate_capacity(content_kind: &ContentKind, magnitude: &isize) -> CapacityType {
-        match content_kind {
-            ContentKind::PP | ContentKind::MF => {
+    pub fn calculate_capacity(concentration: &Concentration, magnitude: &isize) -> Capacity {
+        match concentration {
+            Concentration::PP | Concentration::MF => {
                 if magnitude > &1isize {
                     panic!("Magnitude too big");
                 }
-                CapacityType::Absolute(10usize.pow(-(magnitude - 2) as u32))
+                Capacity::Absolute(10usize.pow(-(magnitude - 2) as u32))
             }
             // FIXME - add tests
-            ContentKind::WV | ContentKind::WF | ContentKind::RF => {
+            Concentration::WV | Concentration::WF | Concentration::RF => {
                 if magnitude > &-1isize {
                     panic!("Magnitude too big");
                 }
-                CapacityType::Absolute(10usize.pow(-magnitude as u32))
+                Capacity::Absolute(10usize.pow(-magnitude as u32))
             }
-            ContentKind::VP => CapacityType::Relative,
-            ContentKind::MR | ContentKind::MB => CapacityType::Unestimated,
+            Concentration::VP => Capacity::Relative,
+            Concentration::MR | Concentration::MB => Capacity::Unestimated,
         }
     }
 
     /// Check what is maximum magnitude that makes sense for calculations.
     /// In other words at which level we can still talk about meaningful parts, and not values that
     /// are above 100% of content.
-    pub fn maximum_viable_magnitude(content_kind: &ContentKind) -> Option<isize> {
-        match content_kind {
-            ContentKind::PP | ContentKind::MF => Some(1),
-            ContentKind::WV | ContentKind::WF | ContentKind::RF => Some(-1),
-            ContentKind::MR | ContentKind::MB => Some(0),
-            ContentKind::VP => None,
+    pub fn maximum_viable_magnitude(concentration: &Concentration) -> Option<isize> {
+        match concentration {
+            Concentration::PP | Concentration::MF => Some(1),
+            Concentration::WV | Concentration::WF | Concentration::RF => Some(-1),
+            Concentration::MR | Concentration::MB => Some(0),
+            Concentration::VP => None,
         }
     }
 }
 
-fn split_payload(payload: &str) -> Result<(usize, ContentKind, isize), String> {
-    let (kind, split) = match payload {
-        s if s.contains("pp") => (ContentKind::PP, payload.split("pp")),
-        s if s.contains("wf") => (ContentKind::WF, payload.split("wf")),
-        s if s.contains("wv") => (ContentKind::WV, payload.split("wv")),
-        s if s.contains("rf") => (ContentKind::RF, payload.split("rf")),
-        s if s.contains("mf") => (ContentKind::MF, payload.split("mf")),
-        s if s.contains("vp") => (ContentKind::VP, payload.split("vp")),
-        s if s.contains("mr") => (ContentKind::MR, payload.split("mr")),
-        s if s.contains("mb") => (ContentKind::MB, payload.split("mb")),
+fn split_payload(payload: &str) -> Result<(usize, Concentration, isize), String> {
+    let (concentration, split) = match payload {
+        s if s.contains("pp") => (Concentration::PP, payload.split("pp")),
+        s if s.contains("wf") => (Concentration::WF, payload.split("wf")),
+        s if s.contains("wv") => (Concentration::WV, payload.split("wv")),
+        s if s.contains("rf") => (Concentration::RF, payload.split("rf")),
+        s if s.contains("mf") => (Concentration::MF, payload.split("mf")),
+        s if s.contains("vp") => (Concentration::VP, payload.split("vp")),
+        s if s.contains("mr") => (Concentration::MR, payload.split("mr")),
+        s if s.contains("mb") => (Concentration::MB, payload.split("mb")),
         _ => {
             return Err(format!(
                 "Invalid content notation, unrecognized content infix idetifier - {:?}",
@@ -317,7 +317,7 @@ fn split_payload(payload: &str) -> Result<(usize, ContentKind, isize), String> {
         }
     };
 
-    Ok((value, kind, magnitude))
+    Ok((value, concentration, magnitude))
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -355,17 +355,17 @@ fn combine_groups(indexing_group: &Group, concentration_group: &Group) -> Compou
 }
 
 fn combine_components(
-    indexing_components: &Vec<ComponentKind>,
-    concentration_components: &Vec<ComponentKind>,
+    indexing_components: &Vec<Component>,
+    concentration_components: &Vec<Component>,
 ) -> Vec<CompoundKind> {
     let mut combined_components = Vec::new();
     assert_eq!(indexing_components.len(), concentration_components.len());
     for i in 0..indexing_components.len() {
         match (&indexing_components[i], &concentration_components[i]) {
-            (ComponentKind::Token(t1), ComponentKind::Token(t2)) => {
+            (Component::Token(t1), Component::Token(t2)) => {
                 combined_components.push(CompoundKind::Substance(create_substance(t1, t2)));
             }
-            (ComponentKind::Group(g1), ComponentKind::Group(g2)) => {
+            (Component::Group(g1), Component::Group(g2)) => {
                 combined_components.push(CompoundKind::Compound(combine_groups(g1, g2)));
             }
             _ => panic!("Mismatched components"),
