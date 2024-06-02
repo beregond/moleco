@@ -1,6 +1,4 @@
-use crate::tokenize::{
-    generate_compound_tree, Capacity, Compound, Concentration, Content, Ingredient,
-};
+use crate::tokenize::{Capacity, Compound, Concentration, Content, Ingredient};
 use crate::Scheme;
 use image::{ImageBuffer, Rgba};
 use log::trace;
@@ -12,15 +10,12 @@ struct WidthsResult {
     unestimated_capacity: bool,
 }
 
-// TODO no pub?
 pub struct Picture {
     base_size: u32,
     border_size: u32,
     schemes: Vec<Scheme>,
     // Indexing and concentration information combined into tree
-    compound_info: Option<(String, String)>,
-    // TODO add _ to this?
-    scheme_ordering: Option<Vec<usize>>,
+    compound_info: Option<Compound>,
 }
 
 impl Picture {
@@ -28,24 +23,13 @@ impl Picture {
         base_size: u32,
         border_size: u32,
         schemes: Vec<Scheme>,
-        compound_info: Option<(String, String)>,
+        compound_info: Option<Compound>,
     ) -> Self {
         Self {
             base_size,
             border_size,
             schemes,
             compound_info,
-            scheme_ordering: None,
-        }
-    }
-
-    // TODO: This does not belong here
-    fn generate_compound_tree(&self) -> Option<Compound> {
-        match &self.compound_info {
-            None => None,
-            Some((indexing, concentration)) => {
-                Some(generate_compound_tree(indexing, concentration))
-            }
         }
     }
 
@@ -56,7 +40,7 @@ impl Picture {
         let width = cell_size * self.schemes.len() as u32
             - (self.schemes.len() as u32 - 1) * self.border_size;
 
-        // Note to myself - subtraction is required as generation is pixel perfect and
+        // Subtraction is required as generation is pixel perfect and
         // operates on odd sizes - subtraction assures we don't miss pixels in edge cases.
         let half_border = (self.border_size - 1) / 2;
         let half_size = (self.base_size - 1) / 2;
@@ -66,27 +50,36 @@ impl Picture {
         trace!("border_size: {}", self.border_size);
         trace!("half_size: {}", half_border);
 
-        let mut height = cell_size;
-        let mut layers: Vec<Vec<Shape>> = Vec::new();
-        if let Some(compound) = self.generate_compound_tree() {
-            height += quarter_size * 2;
-            let y_offset = cell_size + quarter_size;
-            layers = self.draw_compound_bar(compound, width - half_border, y_offset, quarter_size);
-        }
+        // Height is calculated based on the presence of compound information.
+        let height = match &self.compound_info.is_some() {
+            true => cell_size + half_size,
+            false => cell_size,
+        };
 
-        let mut buffer = ImageBuffer::new(width, height);
-        let mut offset = 0;
-
-        let ordering = match &self.scheme_ordering {
-            Some(ordering) => ordering.clone(),
+        // Initial layers and ordering are set here. If no compound information is present
+        // layers are empty and ordering is just a sequence of indices.
+        // Bar is drawn first, as during drawing it is easier to calculate ordering.
+        let (mut layers, ordering) = match &self.compound_info {
+            Some(compound) => {
+                let (layers, ordered_indices) = self.draw_compound_bar(
+                    compound,
+                    width - half_border,
+                    cell_size + quarter_size,
+                    quarter_size,
+                );
+                (layers, ordered_indices)
+            }
             None => {
                 let mut ord: Vec<usize> = Vec::new();
                 for i in 0..self.schemes.len() {
                     ord.push(i);
                 }
-                ord
+                (vec![], ord)
             }
         };
+
+        let mut buffer = ImageBuffer::new(width, height);
+        let mut offset = 0;
 
         for index in ordering {
             let scheme = &self.schemes[index];
@@ -347,12 +340,12 @@ impl Picture {
     }
 
     fn draw_compound_bar(
-        &mut self,
-        compound: Compound,
+        &self,
+        compound: &Compound,
         width: u32,
         y_offset: u32,
         base_bar_size: u32,
-    ) -> Vec<Vec<Shape>> {
+    ) -> (Vec<Vec<Shape>>, Vec<usize>) {
         let mut layers: Vec<Vec<Shape>> = Vec::new();
         let mut bar_layers: Vec<Shape> = Vec::new();
         let mut line_layers: Vec<Shape> = Vec::new();
@@ -443,8 +436,6 @@ impl Picture {
             }
         }
 
-        self.scheme_ordering = Some(ordered_indices);
-
         // Offset and width gets '-1' because from this time we are working on the actual pixels,
         // which are indexed from 0.
         self.draw_components(
@@ -460,7 +451,7 @@ impl Picture {
 
         layers.push(bar_layers);
         layers.push(line_layers);
-        layers
+        (layers, ordered_indices)
     }
 
     fn draw_components(

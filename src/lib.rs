@@ -160,9 +160,7 @@ pub fn generate_for_minchi(
     // Popping concentration, THEN indexing, order is flipped if you start from the end
     let concentration = chunks.pop().unwrap();
     let indexing = chunks.pop().unwrap();
-    // TODO fix this
-    //let compound_info = Some(generate_compound_tree(indexing, concentration));
-    let compound_info = Some((indexing.to_string(), concentration.to_string()));
+    let compound_info = Some(generate_compound_tree(indexing, concentration));
 
     // Drop version chunk
     chunks.remove(0);
