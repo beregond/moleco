@@ -2,8 +2,7 @@ use clap::{arg, command, Parser, Subcommand};
 use clap_verbosity_flag::{Verbosity, WarnLevel};
 use image::{ImageBuffer, Rgba};
 use log::debug;
-use moleco::layouts::Picture;
-use moleco::{generate_for_inchi, generate_for_minchi, generate_scheme};
+use moleco::{calculate_scheme, generate_moleco};
 use pretty_env_logger;
 use prettytable::{row, Table};
 use viuer::Config;
@@ -33,7 +32,7 @@ enum Commands {
     Generate {
         substance: String,
         #[arg(default_value_t = 200, long)]
-        base_size: u16,
+        base_size: u32,
         /// Print image to terminal.
         #[arg(long, default_value = "false")]
         print: bool,
@@ -46,6 +45,9 @@ enum Commands {
         #[arg(long, default_value = "1")]
         /// Border size in percent points of base size.
         border_size: u32,
+        #[arg(long, default_value = "false")]
+        /// Allow to skip MInChI version check (currently only 0.00.1S is supported).
+        skip_minchi_version_check: bool,
     },
     /// Calculate and print color scheme without generating image.
     Calculate {
@@ -62,7 +64,7 @@ fn print_to_terminal(buffer: ImageBuffer<Rgba<u8>, Vec<u8>>) {
     let height = buffer.height();
     let img = image::DynamicImage::ImageRgba8(buffer);
     let conf = Config {
-        // set offset
+        // set offset in terminal
         x: 10,
         y: height as i16,
         ..Default::default()
@@ -85,54 +87,32 @@ fn main() {
             print_only,
             filename,
             border_size,
+            skip_minchi_version_check,
         } => {
             debug!("Print: {}", print);
             debug!("Print only: {}", print_only);
 
-            if *base_size < 16 {
-                eprintln!("Base size must be bigger than 16 pixels.");
-                std::process::exit(exitcode::USAGE);
-            }
-
-            let mut actual_b_size = (*base_size as f32 * *border_size as f32 / 100.0) as u32;
-            if actual_b_size % 2 == 0 {
-                actual_b_size += 1;
-            }
-            debug!("Border size: {}", actual_b_size);
-            let actual_size: u16;
-            if base_size % 2 == 0 {
-                actual_size = *base_size + 1;
-            } else {
-                actual_size = *base_size;
-            }
-
-            let picture = Picture::new(actual_size as u32, actual_b_size);
-
-            if substance.starts_with("InChI=") {
-                let buffer = generate_for_inchi(substance.to_string(), picture).generate();
-                if *print || *print_only {
-                    print_to_terminal(buffer.clone());
+            let picture = generate_moleco(
+                substance.to_string(),
+                base_size.clone(),
+                border_size.clone(),
+                !skip_minchi_version_check,
+            );
+            match picture {
+                Ok(mut picture) => {
+                    let buffer = picture.generate();
+                    if *print || *print_only {
+                        print_to_terminal(buffer.clone());
+                    }
+                    if !*print_only {
+                        buffer.save(filename).unwrap();
+                        println!("Image saved as {}", filename);
+                    }
                 }
-                if !*print_only {
-                    buffer.save(filename).unwrap();
-                    println!("Image saved as {}", filename);
+                Err(e) => {
+                    eprintln!("{}", e);
+                    std::process::exit(exitcode::USAGE);
                 }
-            } else if substance.starts_with("MInChI=") {
-                let buffer = generate_for_minchi(substance.to_string(), picture).generate();
-
-                if *print || *print_only {
-                    print_to_terminal(buffer.clone());
-                }
-                if !*print_only {
-                    buffer.save(filename).unwrap();
-                    println!("Image saved as {}", filename);
-                }
-            } else if substance.starts_with("InChIKey=") || substance.starts_with("MInChIKey=") {
-                eprintln!("Keys are not supported. Check readme for more info.");
-                std::process::exit(exitcode::USAGE);
-            } else {
-                eprintln!("No InChI or MInChI provided");
-                std::process::exit(exitcode::USAGE);
             }
         }
         Commands::Calculate {
@@ -169,7 +149,7 @@ fn handle_generate(substances: Vec<String>, format: &Format) {
     for substance in &substances {
         if !substance.starts_with("InChI=") {
             eprintln!(
-                "No InChI provided, only InChI is supported for calculation. Error source: {}",
+                "No InChI provided, only payload starting with 'InChI=' is supported for calculation. Error source: {}",
                 substance
             );
             std::process::exit(exitcode::USAGE);
@@ -188,7 +168,7 @@ fn handle_generate(substances: Vec<String>, format: &Format) {
                 "Complementary hue"
             ]);
             for substance in substances {
-                let palette = generate_scheme(substance.to_string());
+                let palette = calculate_scheme(substance.to_string());
                 table.add_row(row![
                     substance,
                     palette.primary.hue,
@@ -202,7 +182,7 @@ fn handle_generate(substances: Vec<String>, format: &Format) {
         Format::Json => {
             let mut json = serde_json::Map::new();
             for substance in substances {
-                let palette = generate_scheme(substance.to_string());
+                let palette = calculate_scheme(substance.to_string());
                 let mut sub_json = serde_json::Map::new();
                 sub_json.insert("primary".to_string(), palette.primary.hue.into());
                 sub_json.insert("first_accent".to_string(), palette.first_accent.hue.into());
@@ -221,7 +201,7 @@ fn handle_generate(substances: Vec<String>, format: &Format) {
         Format::Yaml => {
             let mut yaml = serde_yaml::Mapping::new();
             for substance in substances {
-                let palette = generate_scheme(substance.to_string());
+                let palette = calculate_scheme(substance.to_string());
                 let mut sub_yaml = serde_yaml::Mapping::new();
                 sub_yaml.insert(
                     serde_yaml::Value::String("primary".to_string()),
@@ -257,7 +237,7 @@ fn handle_generate(substances: Vec<String>, format: &Format) {
             ])
             .unwrap();
             for substance in substances {
-                let palette = generate_scheme(substance.to_string());
+                let palette = calculate_scheme(substance.to_string());
                 wtr.write_record(&[
                     &substance,
                     &palette.primary.hue.to_string(),

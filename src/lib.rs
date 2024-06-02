@@ -1,7 +1,8 @@
 pub mod layouts;
 pub mod tokenize;
 use crate::layouts::Picture;
-use log::{info, trace};
+use crate::tokenize::generate_compound_tree;
+use log::debug;
 use num_bigint::BigUint;
 use num_traits::Zero;
 use palette::{FromColor, Hsv, Srgb};
@@ -46,17 +47,44 @@ impl Scheme {
     }
 }
 
-pub fn modulo(divident: &BigUint, divisor: u32) -> u32 {
-    let rest = divident % BigUint::from(divisor);
-    let mut result: u32 = 0;
-    // Since rest if always below 360, much below u32::MAX, we can safely convert it this way. I think.
-    for i in rest.iter_u32_digits() {
-        result += i;
+pub fn generate_moleco(
+    payload: String,
+    base_size: u32,
+    border_size_percent_points: u32,
+    strict_minchi_version_check: bool,
+) -> Result<Picture, String> {
+    if payload.starts_with("InChI=") {
+        Ok(generate_for_inchi(
+            payload,
+            base_size,
+            border_size_percent_points,
+        )?)
+    } else if payload.starts_with("MInChI=") {
+        if !payload.starts_with("MInChI=0.00.1S/") && strict_minchi_version_check {
+            return Err(
+                "Only MInChI version 0.00.1S is supported for now, you may pass flag to skip it."
+                    .to_string(),
+            );
+        }
+        Ok(generate_for_minchi(
+            payload,
+            base_size,
+            border_size_percent_points,
+        )?)
+    } else if payload.starts_with("InChIKey=") || payload.starts_with("MInChIKey=") {
+        Err("Keys are not supported. Check readme for more info.".to_string())
+    } else {
+        Err("No InChI or MInChI provided".to_string())
     }
-    result
 }
 
-pub fn generate_scheme(substance: String) -> Scheme {
+pub fn calculate_scheme(substance: String) -> Scheme {
+    let substance = match substance {
+        s if s.starts_with("InChI=") => s[6..].to_string(),
+        s => s,
+    };
+    debug!("Substance: {}", substance);
+
     let mut hasher = Sha512::new();
     hasher.update(substance);
     let result = hasher.finalize();
@@ -66,13 +94,15 @@ pub fn generate_scheme(substance: String) -> Scheme {
         let step = i.clone() as u64;
         sum += step;
     }
-    trace!("Substance hash: {}", sum);
+    debug!("Substance hash: {}", sum);
+
     let primary_hue = modulo(&sum, 360);
     let complementary_hue = primary_hue + 165 + modulo(&sum, 30);
     let first_accent_hue = primary_hue + modulo(&sum, (complementary_hue - 5) - (primary_hue + 5));
     let second_accent_hue =
         complementary_hue + modulo(&sum, (primary_hue + 355) - (complementary_hue + 5));
-    // Normalization of hues
+
+    // Normalization of hues, as they can go over 360
     let complementary_hue = complementary_hue % 360;
     let first_accent_hue = first_accent_hue % 360;
     let second_accent_hue = second_accent_hue % 360;
@@ -83,38 +113,94 @@ pub fn generate_scheme(substance: String) -> Scheme {
         second_accent_hue,
         complementary_hue,
     );
-    info!("Primary hue: {}", scheme.primary.hue);
-    info!("Complementary hue: {}", scheme.complementary.hue);
-    info!("First accent hue: {}", scheme.first_accent.hue);
-    info!("Second accent hue: {}", scheme.second_accent.hue);
+    debug!("Primary hue: {}", scheme.primary.hue);
+    debug!("Complementary hue: {}", scheme.complementary.hue);
+    debug!("First accent hue: {}", scheme.first_accent.hue);
+    debug!("Second accent hue: {}", scheme.second_accent.hue);
     scheme
 }
 
-pub fn generate_for_inchi(substance: String, mut picture: Picture) -> Picture {
-    let scheme = generate_scheme(substance[6..].to_string());
-
-    picture.add_scheme(scheme);
-    picture
+// TODO double check this function
+fn modulo(divident: &BigUint, divisor: u32) -> u32 {
+    let rest = divident % BigUint::from(divisor);
+    let mut result: u32 = 0;
+    // Since rest if always below 360, much below u32::MAX, we can safely convert it this way. I think.
+    for i in rest.iter_u32_digits() {
+        result += i;
+    }
+    result
 }
 
-pub fn generate_for_minchi(substance: String, mut picture: Picture) -> Picture {
+pub fn generate_for_inchi(
+    substance: String,
+    base_size: u32,
+    border_size_percent_points: u32,
+) -> Result<Picture, String> {
+    let (actual_size, actual_border_size) = _check_sizes(base_size, border_size_percent_points)?;
+    let scheme = calculate_scheme(substance);
+
+    Ok(Picture::new(
+        actual_size,
+        actual_border_size,
+        vec![scheme],
+        None,
+    ))
+}
+
+pub fn generate_for_minchi(
+    substance: String,
+    base_size: u32,
+    border_size_percent_points: u32,
+) -> Result<Picture, String> {
+    let (actual_size, actual_border_size) = _check_sizes(base_size, border_size_percent_points)?;
     let mut chunks: Vec<&str> = substance.split('/').collect();
     if chunks.len() < 4 {
-        eprintln!("MInChI must have at least 4 parts separated by '/'.");
-        std::process::exit(exitcode::USAGE);
+        return Err("MInChI must have at least 4 parts separated by '/'.".to_string());
     }
-    // Popping from the end, order is flipped
+    // Popping concentration, THEN indexing, order is flipped if you start from the end
     let concentration = chunks.pop().unwrap();
     let indexing = chunks.pop().unwrap();
+    // TODO fix this
+    //let compound_info = Some(generate_compound_tree(indexing, concentration));
+    let compound_info = Some((indexing.to_string(), concentration.to_string()));
 
+    // Drop version chunk
     chunks.remove(0);
-    let structure = chunks.join("/");
-    let molecules: Vec<&str> = structure.split('&').collect();
-    for molecule in molecules {
-        let scheme = generate_scheme(molecule.to_string());
-        picture.add_scheme(scheme);
+    //let molecules: Vec<&str> = structure.split('&');
+    let schemes = chunks
+        .join("/")
+        .split('&')
+        .map(|molecule| calculate_scheme(molecule.to_string()))
+        .collect();
+
+    Ok(Picture::new(
+        actual_size,
+        actual_border_size,
+        schemes,
+        compound_info,
+    ))
+}
+
+fn _check_sizes(base_size: u32, border_size_percent_points: u32) -> Result<(u32, u32), String> {
+    if base_size < 16 {
+        return Err("Base size must be bigger than 16 pixels.".to_string());
     }
 
-    picture.add_ic_info(indexing.to_string(), concentration.to_string());
-    picture
+    let mut actual_border_size =
+        (base_size as f32 * border_size_percent_points as f32 / 100.0) as u32;
+    if actual_border_size % 2 == 0 {
+        actual_border_size += 1;
+    }
+    debug!("Calculated border size: {}", actual_border_size);
+
+    let actual_size: u32;
+    if base_size % 2 == 0 {
+        actual_size = base_size + 1;
+    } else {
+        actual_size = base_size;
+    }
+
+    debug!("Calculated base size: {}", actual_size);
+
+    Ok((actual_size, actual_border_size))
 }

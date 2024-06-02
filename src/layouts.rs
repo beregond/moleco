@@ -1,5 +1,5 @@
 use crate::tokenize::{
-    generate_compound_hierarchy, Capacity, Compound, Concentration, Content, Ingredient,
+    generate_compound_tree, Capacity, Compound, Concentration, Content, Ingredient,
 };
 use crate::Scheme;
 use image::{ImageBuffer, Rgba};
@@ -12,40 +12,39 @@ struct WidthsResult {
     unestimated_capacity: bool,
 }
 
+// TODO no pub?
 pub struct Picture {
     base_size: u32,
     border_size: u32,
     schemes: Vec<Scheme>,
-    // Indexing and concentration information
-    ic_info: Option<(String, String)>,
+    // Indexing and concentration information combined into tree
+    compound_info: Option<(String, String)>,
+    // TODO add _ to this?
     scheme_ordering: Option<Vec<usize>>,
 }
 
 impl Picture {
-    pub fn new(base_size: u32, border_size: u32) -> Self {
+    pub fn new(
+        base_size: u32,
+        border_size: u32,
+        schemes: Vec<Scheme>,
+        compound_info: Option<(String, String)>,
+    ) -> Self {
         Self {
             base_size,
             border_size,
-            schemes: Vec::new(),
-            ic_info: None,
+            schemes,
+            compound_info,
             scheme_ordering: None,
         }
     }
 
-    pub fn add_scheme(&mut self, scheme: Scheme) {
-        self.schemes.push(scheme);
-    }
-
-    pub fn add_ic_info(&mut self, indexing: String, concentration: String) {
-        self.ic_info = Some((indexing, concentration));
-    }
-
     // TODO: This does not belong here
-    fn generate_ic_bar(&self) -> Option<Compound> {
-        match &self.ic_info {
+    fn generate_compound_tree(&self) -> Option<Compound> {
+        match &self.compound_info {
             None => None,
             Some((indexing, concentration)) => {
-                Some(generate_compound_hierarchy(indexing, concentration))
+                Some(generate_compound_tree(indexing, concentration))
             }
         }
     }
@@ -57,7 +56,8 @@ impl Picture {
         let width = cell_size * self.schemes.len() as u32
             - (self.schemes.len() as u32 - 1) * self.border_size;
 
-        // TODO: Substraction is not required?
+        // Note to myself - subtraction is required as generation is pixel perfect and
+        // operates on odd sizes - subtraction assures we don't miss pixels in edge cases.
         let half_border = (self.border_size - 1) / 2;
         let half_size = (self.base_size - 1) / 2;
         let quarter_size = (half_size - 1) / 2;
@@ -68,7 +68,7 @@ impl Picture {
 
         let mut height = cell_size;
         let mut layers: Vec<Vec<Shape>> = Vec::new();
-        if let Some(compound) = self.generate_ic_bar() {
+        if let Some(compound) = self.generate_compound_tree() {
             height += quarter_size * 2;
             let y_offset = cell_size + quarter_size;
             layers = self.draw_compound_bar(compound, width - half_border, y_offset, quarter_size);

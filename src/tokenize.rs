@@ -89,7 +89,7 @@ fn parse_group(iter: &mut Peekable<Chars>) -> Group {
     let mut components = Vec::new();
     let mut current_token = String::new();
 
-    // Case fot the empty string
+    // Case for the empty string
     if iter.peek().is_none() {
         components.push(Component::Token(Token {
             value: "".to_string(),
@@ -176,7 +176,7 @@ fn parse_group(iter: &mut Peekable<Chars>) -> Group {
 #[derive(Debug, Eq, PartialEq)]
 pub enum Concentration {
     // To get idea what those infixes do, check cauculate_capacity function
-    /// Parts per N, 51pp0 equals 51 percent, 5pp1 equals 50 percent
+    /// Percentage points, 51pp0 equals 51 percent, 5pp1 equals 50 percent
     PP,
     /// Weight to total volume ratio (in percent), ~25wr-3 equals to 2.5% of weight of solution
     WV,
@@ -337,7 +337,7 @@ pub enum Ingredient {
     Substance(Substance),
 }
 
-pub fn generate_compound_hierarchy(indexing: &str, concentration: &str) -> Compound {
+pub fn generate_compound_tree(indexing: &str, concentration: &str) -> Compound {
     let i_tree = tokenize_string(indexing, 'n');
     let c_tree = tokenize_string(concentration, 'g');
     combine_groups(&i_tree, &c_tree)

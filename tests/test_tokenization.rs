@@ -1,6 +1,6 @@
 use moleco::tokenize::{
-    generate_compound_hierarchy, tokenize_string, Component, Compound, Concentration, Content,
-    Group, Ingredient, Substance, Token,
+    generate_compound_tree, tokenize_string, Component, Compound, Concentration, Content, Group,
+    Ingredient, Substance, Token,
 };
 
 // source: http://molmatinf.com/minchidemo/
@@ -19,6 +19,7 @@ static DISHWASHING_LIQUID: &str =
     1H3,(H,19,20,21);/q;+1/p-1&ClH.Na/h1H;/q;+1/p-1&H2O/h1H2/n{4&{2&4}&&{1&4}&3}/g{807wf-3&{6pp1&4pp1}\
     117wf-3&1wf-2&{27pp0&73pp0}66wf-3&}";
 
+// TODO: make macros out of these
 fn t(value: &str) -> Component {
     Component::Token(Token {
         value: value.to_string(),
@@ -184,11 +185,11 @@ fn s(index: Option<String>, content: Option<String>) -> Ingredient {
 }
 
 #[test]
-fn test_hierarchy_1() {
+fn test_tree_1() {
     let (indexing, concentration) = get_formaldehyde_ic();
-    let hierarchy = generate_compound_hierarchy(indexing, concentration);
+    let tree = generate_compound_tree(indexing, concentration);
     assert_eq!(
-        hierarchy,
+        tree,
         Compound {
             ingredients: vec![
                 c(
@@ -206,11 +207,11 @@ fn test_hierarchy_1() {
 }
 
 #[test]
-fn test_hierarchy_2() {
+fn test_tree_2() {
     let (indexing, concentration) = get_lithium_ic();
-    let hierarchy = generate_compound_hierarchy(indexing, concentration);
+    let tree = generate_compound_tree(indexing, concentration);
     assert_eq!(
-        hierarchy,
+        tree,
         Compound {
             ingredients: vec![
                 s(Some("6".to_string()), Some("1mr0".to_string())),
@@ -276,11 +277,11 @@ fn test_content_parsing_range_2() {
 }
 
 #[test]
-fn test_hierarchy_and_computation() {
+fn test_compound_tree() {
     let (indexing, concentration) = get_liquid_ic();
-    let hierarchy = generate_compound_hierarchy(indexing, concentration);
+    let tree = generate_compound_tree(indexing, concentration);
     assert_eq!(
-        hierarchy,
+        tree,
         Compound {
             ingredients: vec![
                 s(Some("4".to_string()), Some("807wf-3".to_string())),
