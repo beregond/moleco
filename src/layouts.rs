@@ -1,7 +1,7 @@
 use crate::tokenize::{Capacity, Compound, Concentration, Content, Ingredient};
 use crate::Scheme;
 use image::{ImageBuffer, Rgba};
-use log::trace;
+use log::debug;
 use palette::{FromColor, Hsv, Srgba};
 use std::collections::HashMap;
 
@@ -47,34 +47,51 @@ impl Picture {
         let quarter_size = (half_size - 1) / 2;
         let eight_size = (quarter_size - 1) / 2;
 
-        trace!("border_size: {}", self.border_size);
-        trace!("half_size: {}", half_border);
-
         // Height is calculated based on the presence of compound information.
         let height = match &self.compound_info.is_some() {
             true => cell_size + half_size,
             false => cell_size,
         };
 
+        let mut layers: Vec<Vec<Shape>> = Vec::new();
+        // Lots of details (like ordering) depending on the presence of compound information,
+        // that's why all work is started from drawing the bar first.
+        let ordering;
+
         // Initial layers and ordering are set here. If no compound information is present
         // layers are empty and ordering is just a sequence of indices.
-        // Bar is drawn first, as during drawing it is easier to calculate ordering.
-        let (mut layers, ordering) = match &self.compound_info {
+        match &self.compound_info {
             Some(compound) => {
-                let (layers, ordered_indices) = self.draw_compound_bar(
-                    compound,
-                    width - half_border,
-                    cell_size + quarter_size,
+                let widths = calculate_widths(&compound.ingredients);
+                debug!("Compound basic widths: {:?}", widths.widths);
+
+                let ordered_widths = calculate_ordered_widths(&self.schemes, widths);
+                debug!("Compound ordered widths: {:?}", ordered_widths);
+
+                ordering = self.calculate_ordered_indices(Some(&ordered_widths));
+                debug!("Compound ordering: {:?}", ordering);
+
+                let mut bar_layers: Vec<Shape> = Vec::new();
+                let mut line_layers: Vec<Shape> = Vec::new();
+
+                // Offset and width gets '-1' because from this time we are working on the actual pixels,
+                // which are indexed from 0.
+                self.draw_components(
+                    ordered_widths,
+                    cell_size + quarter_size - 1,
+                    0,
+                    width - half_border - 1,
                     quarter_size,
+                    true, //calculated_widths.unestimated_capacity,
+                    &mut bar_layers,
+                    &mut line_layers,
                 );
-                (layers, ordered_indices)
+
+                layers.push(bar_layers);
+                layers.push(line_layers);
             }
             None => {
-                let mut ord: Vec<usize> = Vec::new();
-                for i in 0..self.schemes.len() {
-                    ord.push(i);
-                }
-                (vec![], ord)
+                ordering = self.calculate_ordered_indices(None);
             }
         };
 
@@ -339,119 +356,27 @@ impl Picture {
         buffer
     }
 
-    fn draw_compound_bar(
-        &self,
-        compound: &Compound,
-        width: u32,
-        y_offset: u32,
-        base_bar_size: u32,
-    ) -> (Vec<Vec<Shape>>, Vec<usize>) {
-        let mut layers: Vec<Vec<Shape>> = Vec::new();
-        let mut bar_layers: Vec<Shape> = Vec::new();
-        let mut line_layers: Vec<Shape> = Vec::new();
-
-        let calculated_widths = self.calculate_widths(&compound.ingredients);
-        trace!("calc: {:?}", calculated_widths.widths);
-
-        let mut sums: HashMap<String, f32> = HashMap::new();
-
-        // Sum up widths for each index, while checking if the index is valid
-        for (index, width) in calculated_widths.widths {
-            let actual_index = match index.parse::<usize>() {
-                Ok(value) => match self.schemes.get(value - 1) {
-                    Some(_) => index,
-                    None => {
-                        trace!("Unknown index: {}", index);
-                        "".to_string()
-                    }
-                },
-                Err(_) => {
-                    trace!("Unknown index: {}", index);
-                    "".to_string()
+    // TODO docs
+    fn calculate_ordered_indices(&self, ordered_widths: Option<&Vec<(String, f32)>>) -> Vec<usize> {
+        match ordered_widths {
+            None => {
+                let mut indices: Vec<usize> = Vec::new();
+                for i in 0..self.schemes.len() {
+                    indices.push(i);
                 }
-            };
-
-            let sum = sums.entry(actual_index).or_insert(0f32);
-            *sum += width;
-        }
-        trace!("sums: {:?}", sums);
-
-        let mut empty_keys: Vec<String> = vec![];
-        for (key, value) in sums.iter() {
-            if *value <= 0f32 {
-                empty_keys.push(key.clone());
+                indices
+            }
+            Some(value) => {
+                let mut ordered_indices: Vec<usize> = vec![];
+                for (index, _) in value {
+                    match index.parse::<usize>() {
+                        Ok(value) => ordered_indices.push(value - 1),
+                        Err(_) => {}
+                    }
+                }
+                ordered_indices
             }
         }
-
-        let mut ordered_widths_map: HashMap<String, f32> = HashMap::new();
-        let mut empty_map: HashMap<String, f32> = HashMap::new();
-        let mut unknown: Option<(String, f32)> = None;
-
-        for (key, value) in sums.iter() {
-            if key == "" {
-                unknown = Some((key.clone(), *value));
-            } else if *value == 0f32 {
-                empty_map.insert(key.clone(), *value);
-            } else {
-                ordered_widths_map.insert(key.clone(), *value);
-            }
-        }
-
-        let mut ordered_widths: Vec<(String, f32)> = vec![];
-        let mut empty: Vec<(String, f32)> = vec![];
-
-        for key in 0..self.schemes.len() {
-            // FIXME again off by one, should be done only once
-            let str_key = (key + 1).to_string();
-            match ordered_widths_map.get(&str_key) {
-                Some(value) => ordered_widths.push((str_key, *value)),
-                None => {}
-            }
-        }
-
-        for key in 0..self.schemes.len() {
-            let str_key = (key + 1).to_string();
-            match empty_map.get(&str_key) {
-                Some(value) => empty.push((str_key, *value)),
-                None => {}
-            }
-        }
-
-        for (key, value) in empty {
-            ordered_widths.push((key, value));
-        }
-
-        if let Some((key, value)) = unknown {
-            ordered_widths.push((key, value));
-        }
-
-        trace!("organized widths: {:?}", ordered_widths);
-
-        let mut ordered_indices: Vec<usize> = vec![];
-        for (index, _) in &ordered_widths {
-            match index.parse::<usize>() {
-                // #FIXME: Im subtracting this in two places, should be done only once
-                Ok(value) => ordered_indices.push(value - 1),
-                Err(_) => {}
-            }
-        }
-
-        // Offset and width gets '-1' because from this time we are working on the actual pixels,
-        // which are indexed from 0.
-        self.draw_components(
-            ordered_widths,
-            y_offset - 1,
-            0,
-            width - 1,
-            base_bar_size,
-            calculated_widths.unestimated_capacity,
-            &mut bar_layers,
-            &mut line_layers,
-        );
-
-        layers.push(bar_layers);
-        layers.push(line_layers);
-        (layers, ordered_indices)
     }
 
     fn draw_components(
@@ -500,11 +425,9 @@ impl Picture {
             sizes.push(4f32);
         }
 
-        trace!("entry_sizes: {:?}", sizes);
-
         let ln_sizes = sizes.iter().map(|s| s.ln()).collect::<Vec<f32>>();
 
-        trace!("ln sizes: {:?}", ln_sizes);
+        debug!("Compound sizes after logarithm: {:?}", ln_sizes);
 
         let ln_sum = ln_sizes.iter().sum::<f32>();
 
@@ -536,7 +459,7 @@ impl Picture {
             }
         }
 
-        trace!("actual_sizes: {:?}", actual_sizes);
+        debug!("Compound actual sizes: {:?}", actual_sizes);
 
         line_layers.push(Shape::Line(Line {
             x1: start_x,
@@ -682,147 +605,230 @@ impl Picture {
             }));
         }
     }
+}
 
-    fn calculate_widths(&self, components: &Vec<Ingredient>) -> WidthsResult {
-        let mut unestimated_capacity = false;
-        let mut magnitudes: Vec<isize> = vec![];
-        let mut concentrations: Vec<&Concentration> = vec![];
-        let mut unknown = 0;
-        for component in components {
-            match component {
-                Ingredient::Compound(compound) => match &compound.content {
-                    Some(content) => {
-                        concentrations.push(&content.concentration);
-                        magnitudes.push(content.magnitude);
-                    }
-                    None => {
-                        unknown += 1;
-                    }
-                },
-                Ingredient::Substance(substance) => match &substance.content {
-                    Some(content) => {
-                        concentrations.push(&content.concentration);
-                        magnitudes.push(content.magnitude);
-                    }
-                    None => {
-                        unknown += 1;
-                    }
-                },
-            }
-        }
+// TODO test this?
+fn calculate_ordered_widths(
+    schemes: &Vec<Scheme>,
+    calculated_widths: WidthsResult,
+) -> Vec<(String, f32)> {
+    let mut sums: HashMap<String, f32> = HashMap::new();
 
-        let mut seen_concentrations: Vec<&Concentration> = vec![];
-        for concentration in &concentrations {
-            if seen_concentrations.contains(concentration) {
-                continue;
-            }
-            seen_concentrations.push(concentration);
-        }
-        if seen_concentrations.len() > 1 {
-            panic!(
-                "Different concentrations in one mixture, only one is allowed - {:?}",
-                seen_concentrations
-            );
-        }
-        // TODO Where is check if there is at least one?
-        let concentration = seen_concentrations[0];
-
-        match Content::maximum_viable_magnitude(concentration) {
-            Some(max_level) => {
-                magnitudes.push(max_level);
-            }
-            None => {}
-        }
-
-        let min_magnitude = magnitudes.iter().min().unwrap();
-
-        let mut values: Vec<usize> = vec![];
-        for component in components {
-            match component {
-                Ingredient::Compound(compound) => match &compound.content {
-                    Some(content) => values.push(content.value_at_magnitude(min_magnitude)),
-                    None => {}
-                },
-                Ingredient::Substance(substance) => match &substance.content {
-                    Some(content) => values.push(content.value_at_magnitude(min_magnitude)),
-                    None => {}
-                },
-            }
-        }
-        let sum = values.iter().sum::<usize>();
-        let capacity = match Content::calculate_capacity(concentration, min_magnitude) {
-            Capacity::Absolute(capacity) => capacity,
-            Capacity::Relative => sum,
-            Capacity::Unestimated => {
-                // As long as this app is not calculating molar mass/volume - it is always
-                // impossible to actually know proportions of mixture.
-                unestimated_capacity = true;
-                sum
+    // Sum up widths for each index, while checking if the index is valid
+    for (index, width) in calculated_widths.widths {
+        let actual_index = match index.parse::<usize>() {
+            Ok(value) => match schemes.get(value - 1) {
+                Some(_) => index,
+                None => {
+                    debug!("Unknown index: '{}'", index);
+                    "".to_string()
+                }
+            },
+            Err(_) => {
+                debug!("Unknown index: '{}'", index);
+                "".to_string()
             }
         };
 
-        trace!("capacity: {}", capacity);
-        trace!("min_magnitude: {}", min_magnitude);
-        trace!("values: {:?}", values);
-        trace!("sum: {}", sum);
-        let mut default_width = 0f32;
-        let mut result: Vec<(String, f32)> = vec![];
-        match (unknown, sum, capacity) {
-            // If taken capacity is more than 100% - every substance without content specified will
-            // be treated as addition with **no representation** in the bar. (Actually its size
-            // will simply be 0).
-            (_, s, c) if s >= c => {}
-            // There is some volume left for known SINGLE substance, lets assign it to that substance.
-            (u, s, c) if u == 1 && s < c => {
-                default_width = (c - s) as f32 / u as f32;
-            }
-            // There is some unknown substance(s) with known volume OR there are more than one
-            // known substances, lets append unknown substance do the end of the bar as indication.
-            // In case of multiple known substances - let's not try to guess - treat this as not
-            // provided.
-            (u, s, c) if u != 1 && s < c => {
-                result.push(("".to_string(), (c - s) as f32 / s as f32));
-            }
-            (_, _, _) => {
-                panic!("Unknown case");
-            }
-        }
-        let sum = sum as f32;
+        let sum = sums.entry(actual_index).or_insert(0f32);
+        *sum += width;
+    }
 
-        // Final, recursive calculation of widths for each component.
-        for component in components {
-            match component {
-                Ingredient::Compound(compound) => {
-                    let size = match &compound.content {
-                        Some(content) => content.value_at_magnitude(min_magnitude) as f32,
-                        None => default_width,
-                    };
-                    let size = size / sum;
-                    let calculated = self.calculate_widths(&compound.ingredients);
-                    for (index, width) in calculated.widths {
-                        result.push((index, width * size));
-                    }
-                    if calculated.unestimated_capacity {
-                        unestimated_capacity = true;
-                    }
+    let mut empty_keys: Vec<String> = vec![];
+    for (key, value) in sums.iter() {
+        if *value <= 0f32 {
+            empty_keys.push(key.clone());
+        }
+    }
+
+    let mut ordered_widths_map: HashMap<String, f32> = HashMap::new();
+    let mut empty_map: HashMap<String, f32> = HashMap::new();
+    let mut unknown: Option<(String, f32)> = None;
+
+    for (key, value) in sums.iter() {
+        if key == "" {
+            unknown = Some((key.clone(), *value));
+        } else if *value == 0f32 {
+            empty_map.insert(key.clone(), *value);
+        } else {
+            ordered_widths_map.insert(key.clone(), *value);
+        }
+    }
+
+    let mut ordered_widths: Vec<(String, f32)> = vec![];
+    let mut empty: Vec<(String, f32)> = vec![];
+
+    // Key is not equal index, beware off-by-one error.
+    for key in 1..=schemes.len() {
+        let str_key = key.to_string();
+        match ordered_widths_map.get(&str_key) {
+            Some(value) => ordered_widths.push((str_key, *value)),
+            None => {}
+        }
+    }
+
+    // Same as above.
+    for key in 1..=schemes.len() {
+        let str_key = key.to_string();
+        match empty_map.get(&str_key) {
+            Some(value) => empty.push((str_key, *value)),
+            None => {}
+        }
+    }
+
+    for (key, value) in empty {
+        ordered_widths.push((key, value));
+    }
+
+    if let Some((key, value)) = unknown {
+        ordered_widths.push((key, value));
+    }
+
+    ordered_widths
+}
+
+// TODO test this
+/// Calculate widths of components in the mixture in percent.
+/// Result is denormalized and (un)estimated, so it is just base for later calculations.
+fn calculate_widths(components: &Vec<Ingredient>) -> WidthsResult {
+    let mut unestimated_capacity = false;
+    let mut magnitudes: Vec<isize> = vec![];
+    let mut concentrations: Vec<&Concentration> = vec![];
+    let mut unknown = 0;
+    for component in components {
+        match component {
+            Ingredient::Compound(compound) => match &compound.content {
+                Some(content) => {
+                    concentrations.push(&content.concentration);
+                    magnitudes.push(content.magnitude);
                 }
-                Ingredient::Substance(substance) => {
-                    let size = match &substance.content {
-                        Some(content) => content.value_at_magnitude(min_magnitude) as f32,
-                        None => default_width,
-                    };
-                    let index = match &substance.index {
-                        Some(index) => index.clone(),
-                        None => "".to_string(),
-                    };
-                    result.push((index, size / sum as f32));
+                None => {
+                    unknown += 1;
+                }
+            },
+            Ingredient::Substance(substance) => match &substance.content {
+                Some(content) => {
+                    concentrations.push(&content.concentration);
+                    magnitudes.push(content.magnitude);
+                }
+                None => {
+                    unknown += 1;
+                }
+            },
+        }
+    }
+
+    let mut seen_concentrations: Vec<&Concentration> = vec![];
+    for concentration in &concentrations {
+        if seen_concentrations.contains(concentration) {
+            continue;
+        }
+        seen_concentrations.push(concentration);
+    }
+    if seen_concentrations.len() > 1 {
+        panic!(
+            "Different concentrations in one mixture, only one is allowed - {:?}",
+            seen_concentrations
+        );
+    }
+    // TODO Where is check if there is at least one?
+    let concentration = seen_concentrations[0];
+
+    match Content::maximum_viable_magnitude(concentration) {
+        Some(max_level) => {
+            magnitudes.push(max_level);
+        }
+        None => {}
+    }
+
+    let min_magnitude = magnitudes.iter().min().unwrap();
+
+    let mut values: Vec<usize> = vec![];
+    for component in components {
+        match component {
+            Ingredient::Compound(compound) => match &compound.content {
+                Some(content) => values.push(content.value_at_magnitude(min_magnitude)),
+                None => {}
+            },
+            Ingredient::Substance(substance) => match &substance.content {
+                Some(content) => values.push(content.value_at_magnitude(min_magnitude)),
+                None => {}
+            },
+        }
+    }
+    let sum = values.iter().sum::<usize>();
+    let capacity = match Content::calculate_capacity(concentration, min_magnitude) {
+        Capacity::Absolute(capacity) => capacity,
+        Capacity::Relative => sum,
+        Capacity::Unestimated => {
+            // As long as this app is not calculating molar mass/volume - it is always
+            // impossible to actually know proportions of mixture.
+            unestimated_capacity = true;
+            sum
+        }
+    };
+
+    debug!("capacity: {}", capacity);
+    debug!("min_magnitude: {}", min_magnitude);
+    debug!("values: {:?}", values);
+    debug!("sum: {}", sum);
+    let mut default_width = 0f32;
+    let mut result: Vec<(String, f32)> = vec![];
+    match (unknown, sum, capacity) {
+        // If taken capacity is more than 100% - every substance without content specified will
+        // be treated as addition with **no representation** in the bar. (Actually its size
+        // will simply be 0).
+        (_, s, c) if s >= c => {}
+        // There is some volume left for known SINGLE substance, lets assign it to that substance.
+        (u, s, c) if u == 1 && s < c => {
+            default_width = (c - s) as f32 / u as f32;
+        }
+        // There is some unknown substance(s) with known volume OR there are more than one
+        // known substances, lets append unknown substance do the end of the bar as indication.
+        // In case of multiple known substances - let's not try to guess - treat this as not
+        // provided.
+        (u, s, c) if u != 1 && s < c => {
+            result.push(("".to_string(), (c - s) as f32 / s as f32));
+        }
+        (_, _, _) => {
+            panic!("Unknown case");
+        }
+    }
+    let sum = sum as f32;
+
+    // Final, recursive calculation of widths for each component.
+    for component in components {
+        match component {
+            Ingredient::Compound(compound) => {
+                let size = match &compound.content {
+                    Some(content) => content.value_at_magnitude(min_magnitude) as f32,
+                    None => default_width,
+                };
+                let size = size / sum;
+                let calculated = calculate_widths(&compound.ingredients);
+                for (index, width) in calculated.widths {
+                    result.push((index, width * size));
+                }
+                if calculated.unestimated_capacity {
+                    unestimated_capacity = true;
                 }
             }
+            Ingredient::Substance(substance) => {
+                let size = match &substance.content {
+                    Some(content) => content.value_at_magnitude(min_magnitude) as f32,
+                    None => default_width,
+                };
+                let index = match &substance.index {
+                    Some(index) => index.clone(),
+                    None => "".to_string(),
+                };
+                result.push((index, size / sum as f32));
+            }
         }
-        WidthsResult {
-            widths: result,
-            unestimated_capacity,
-        }
+    }
+    WidthsResult {
+        widths: result,
+        unestimated_capacity,
     }
 }
 
