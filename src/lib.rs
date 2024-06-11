@@ -2,7 +2,7 @@ pub mod layouts;
 pub mod tokenize;
 use crate::layouts::Picture;
 use crate::tokenize::generate_compound_tree;
-use log::debug;
+use log::{debug, info};
 use num_bigint::BigUint;
 use num_traits::Zero;
 use palette::{FromColor, Hsv, Srgb};
@@ -83,18 +83,19 @@ pub fn calculate_scheme(substance: String) -> Scheme {
         s if s.starts_with("InChI=") => s[6..].to_string(),
         s => s,
     };
-    debug!("Substance: {}", substance);
+    info!("Substance: {}", substance);
 
     let mut hasher = Sha512::new();
     hasher.update(substance);
     let result = hasher.finalize();
+    debug!(" -> Raw hash: {:?}", result);
     let mut sum: BigUint = Zero::zero();
     for i in result.iter() {
         sum <<= 8;
         let step = i.clone() as u64;
         sum += step;
     }
-    debug!("Substance hash: {}", sum);
+    info!(" -> Substance hash: {}", sum);
 
     let primary_hue = modulo(&sum, 360);
     let complementary_hue = primary_hue + 165 + modulo(&sum, 30);
@@ -113,10 +114,13 @@ pub fn calculate_scheme(substance: String) -> Scheme {
         second_accent_hue,
         complementary_hue,
     );
-    debug!("Primary hue: {}", scheme.primary.hue);
-    debug!("Complementary hue: {}", scheme.complementary.hue);
-    debug!("First accent hue: {}", scheme.first_accent.hue);
-    debug!("Second accent hue: {}", scheme.second_accent.hue);
+    info!(
+        " -> Hues, primary: {}, complementary: {}, first accent: {}, second accent: {}",
+        scheme.primary.hue,
+        scheme.complementary.hue,
+        scheme.first_accent.hue,
+        scheme.second_accent.hue
+    );
     scheme
 }
 

@@ -89,9 +89,6 @@ fn main() {
             border_size,
             skip_minchi_version_check,
         } => {
-            debug!("Print: {}", print);
-            debug!("Print only: {}", print_only);
-
             let picture = generate_moleco(
                 substance.to_string(),
                 base_size.clone(),

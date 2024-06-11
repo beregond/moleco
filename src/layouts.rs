@@ -5,6 +5,53 @@ use log::debug;
 use palette::{FromColor, Hsv, Srgba};
 use std::collections::HashMap;
 
+macro_rules! vertical_square {
+    ($shapes: expr, $size: expr, $point: expr, $color: expr) => {
+        $shapes.push(Shape::Square(Square {
+            x: $point.x,
+            y: $point.y,
+            size: $size,
+            orientation: Orientation::Vertical,
+            color: $color.into(),
+        }));
+    };
+}
+
+macro_rules! horizontal_square {
+    ($shapes: expr, $size: expr, $point: expr, $color: expr) => {
+        $shapes.push(Shape::Square(Square {
+            x: $point.x,
+            y: $point.y,
+            size: $size,
+            orientation: Orientation::Horizontal,
+            color: $color.into(),
+        }));
+    };
+}
+
+macro_rules! line {
+    ($shapes: expr, $start: expr, $end: expr, $size: expr, $color: expr) => {
+        $shapes.push(Shape::Line(Line {
+            x1: $start.x,
+            y1: $start.y,
+            x2: $end.x,
+            y2: $end.y,
+            border_size: $size,
+            color: $color.into(),
+        }));
+    };
+    ($shapes: expr, $start_x: expr, $start_y: expr, $end_x: expr, $end_y: expr, $size: expr, $color: expr) => {
+        $shapes.push(Shape::Line(Line {
+            x1: $start_x,
+            y1: $start_y,
+            x2: $end_x,
+            y2: $end_y,
+            border_size: $size,
+            color: $color.into(),
+        }));
+    };
+}
+
 struct WidthsResult {
     widths: Vec<(String, f32)>,
     unestimated_capacity: bool,
@@ -53,13 +100,15 @@ impl Picture {
             false => cell_size,
         };
 
+        // Layers and ordering initializatin. If no compound information is present
+        // layers are empty and ordering is just a sequence of indices.
+        // Altering ordering is neat trick to improve readability of the generated image. See
+        // readme for details.
         let mut layers: Vec<Vec<Shape>> = Vec::new();
-        // Lots of details (like ordering) depending on the presence of compound information,
-        // that's why all work is started from drawing the bar first.
         let ordering;
 
-        // Initial layers and ordering are set here. If no compound information is present
-        // layers are empty and ordering is just a sequence of indices.
+        // Lots of details (like ordering) depending on the presence of compound information,
+        // that's why all work is started from drawing the compound bar first.
         match &self.compound_info {
             Some(compound) => {
                 let widths = calculate_widths(&compound.ingredients);
@@ -76,7 +125,7 @@ impl Picture {
 
                 // Offset and width gets '-1' because from this time we are working on the actual pixels,
                 // which are indexed from 0.
-                self.draw_components(
+                self.draw_compound_bar(
                     ordered_widths,
                     cell_size + quarter_size - 1,
                     0,
@@ -96,250 +145,20 @@ impl Picture {
         };
 
         let mut buffer = ImageBuffer::new(width, height);
+
         let mut offset = 0;
-
         for index in ordering {
-            let scheme = &self.schemes[index];
-            let primary = scheme.primary.srgb;
-            let first_accent = scheme.first_accent.srgb;
-            let second_accent = scheme.second_accent.srgb;
-            let complementary = scheme.complementary.srgb;
-            let mut base_color: Vec<Shape> = Vec::new();
-
-            base_color.push(Shape::Square(Square {
-                x: offset + self.base_size + self.border_size + half_border,
-                y: half_size + self.border_size,
-                size: self.base_size,
-                orientation: Orientation::Vertical,
-                color: primary.into(),
-            }));
-            base_color.push(Shape::Square(Square {
-                x: offset + half_size + self.border_size,
-                y: self.base_size + self.border_size + half_border,
-                size: self.base_size,
-                orientation: Orientation::Vertical,
-                color: first_accent.into(),
-            }));
-            base_color.push(Shape::Square(Square {
-                x: offset + self.base_size + half_size + self.border_size * 2,
-                y: self.base_size + self.border_size + half_border,
-                size: self.base_size,
-                orientation: Orientation::Vertical,
-                color: second_accent.into(),
-            }));
-            base_color.push(Shape::Square(Square {
-                x: offset + self.base_size + self.border_size + half_border,
-                y: self.base_size + half_size + self.border_size * 2,
-                size: self.base_size,
-                orientation: Orientation::Vertical,
-                color: complementary.into(),
-            }));
-            layers.push(base_color);
-
-            let mut base_lines: Vec<Shape> = Vec::new();
-            // Cross - left top to right bottom
-            base_lines.push(Shape::Line(Line {
-                x1: offset + half_size + self.border_size,
-                y1: half_size + self.border_size,
-                x2: offset + self.base_size + half_size + self.border_size * 2,
-                y2: self.base_size + half_size + self.border_size * 2,
-                border_size: self.border_size,
-                color: border_color,
-            }));
-            // Cross - left bottom to right top
-            base_lines.push(Shape::Line(Line {
-                x1: offset + half_size + self.border_size,
-                y1: self.base_size + half_size + self.border_size * 2,
-                x2: offset + self.base_size + half_size + self.border_size * 2,
-                y2: half_size + self.border_size,
-                border_size: self.border_size,
-                color: border_color,
-            }));
-            base_lines.push(Shape::Line(Line {
-                x1: offset + half_border,
-                y1: self.base_size + self.border_size + half_border,
-                x2: offset + self.base_size + self.border_size + half_border,
-                y2: half_border,
-                border_size: self.border_size,
-                color: border_color,
-            }));
-            base_lines.push(Shape::Line(Line {
-                x1: offset + self.base_size + self.border_size + half_border,
-                y1: half_border,
-                x2: offset + self.base_size * 2 + self.border_size * 2 + half_border,
-                y2: self.base_size + self.border_size + half_border,
-                border_size: self.border_size,
-                color: border_color,
-            }));
-            base_lines.push(Shape::Line(Line {
-                x1: offset + self.base_size * 2 + self.border_size * 2 + half_border,
-                y1: self.base_size + self.border_size + half_border,
-                x2: offset + self.base_size + self.border_size + half_border,
-                y2: self.base_size * 2 + self.border_size * 2 + half_border,
-                border_size: self.border_size,
-                color: border_color,
-            }));
-            base_lines.push(Shape::Line(Line {
-                x1: offset + half_border,
-                y1: self.base_size + self.border_size + half_border,
-                x2: offset + self.base_size + self.border_size + half_border,
-                y2: self.base_size * 2 + self.border_size * 2 + half_border,
-                border_size: self.border_size,
-                color: border_color,
-            }));
-            layers.push(base_lines);
-
-            let mut cutouts: Vec<Shape> = Vec::new();
-            // Central cutout
-            cutouts.push(Shape::Square(Square {
-                x: offset + self.base_size + self.border_size + half_border,
-                y: self.base_size + self.border_size + half_border,
-                size: quarter_size,
-                orientation: Orientation::Horizontal,
-                color: eraser,
-            }));
-            // Left top cutout
-            cutouts.push(Shape::Square(Square {
-                x: offset + half_size + self.border_size,
-                y: half_size + self.border_size,
-                size: quarter_size,
-                orientation: Orientation::Horizontal,
-                color: eraser,
-            }));
-            // Right bottom cutout
-            cutouts.push(Shape::Square(Square {
-                x: offset + self.base_size + half_size + self.border_size * 2,
-                y: self.base_size + half_size + self.border_size * 2,
-                size: quarter_size,
-                orientation: Orientation::Horizontal,
-                color: eraser,
-            }));
-            // Left bottom cutout
-            cutouts.push(Shape::Square(Square {
-                x: offset + half_size + self.border_size,
-                y: self.base_size + half_size + self.border_size * 2,
-                size: quarter_size,
-                orientation: Orientation::Horizontal,
-                color: eraser,
-            }));
-            // Right top cutout
-            cutouts.push(Shape::Square(Square {
-                x: offset + self.base_size + half_size + self.border_size * 2,
-                y: half_size + self.border_size,
-                size: quarter_size,
-                orientation: Orientation::Horizontal,
-                color: eraser,
-            }));
-
-            layers.push(cutouts);
-            let mut inner_border: Vec<Shape> = Vec::new();
-            // Left top cutout borders
-            inner_border.push(Shape::Line(Line {
-                x1: offset + half_size + self.border_size + eight_size,
-                y1: half_size + self.border_size - eight_size,
-                x2: offset + half_size + self.border_size + eight_size,
-                y2: half_size + self.border_size + eight_size,
-                border_size: self.border_size,
-                color: border_color,
-            }));
-            inner_border.push(Shape::Line(Line {
-                x1: offset + half_size + self.border_size - eight_size,
-                y1: half_size + self.border_size + eight_size,
-                x2: offset + half_size + self.border_size + eight_size,
-                y2: half_size + self.border_size + eight_size,
-                border_size: self.border_size,
-                color: border_color,
-            }));
-
-            // Right bottom cutout borders
-            inner_border.push(Shape::Line(Line {
-                x1: offset + self.base_size + half_size + self.border_size * 2 - eight_size,
-                y1: self.base_size + half_size + self.border_size * 2 - eight_size,
-                x2: offset + self.base_size + half_size + self.border_size * 2 + eight_size,
-                y2: self.base_size + half_size + self.border_size * 2 - eight_size,
-                border_size: self.border_size,
-                color: border_color,
-            }));
-            inner_border.push(Shape::Line(Line {
-                x1: offset + self.base_size + half_size + self.border_size * 2 - eight_size,
-                y1: self.base_size + half_size + self.border_size * 2 - eight_size,
-                x2: offset + self.base_size + half_size + self.border_size * 2 - eight_size,
-                y2: self.base_size + half_size + self.border_size * 2 + eight_size,
-                border_size: self.border_size,
-                color: border_color,
-            }));
-
-            // Left bottom cutout borders
-            inner_border.push(Shape::Line(Line {
-                x1: offset + half_size + self.border_size - eight_size,
-                y1: self.base_size + half_size + self.border_size * 2 - eight_size,
-                x2: offset + half_size + self.border_size + eight_size,
-                y2: self.base_size + half_size + self.border_size * 2 - eight_size,
-                border_size: self.border_size,
-                color: border_color,
-            }));
-            inner_border.push(Shape::Line(Line {
-                x1: offset + half_size + self.border_size + eight_size,
-                y1: self.base_size + half_size + self.border_size * 2 - eight_size,
-                x2: offset + half_size + self.border_size + eight_size,
-                y2: self.base_size + half_size + self.border_size * 2 + eight_size,
-                border_size: self.border_size,
-                color: border_color,
-            }));
-
-            // Right top cutout borders
-            inner_border.push(Shape::Line(Line {
-                x1: offset + self.base_size + half_size + self.border_size * 2 - eight_size,
-                y1: half_size + self.border_size - eight_size,
-                x2: offset + self.base_size + half_size + self.border_size * 2 - eight_size,
-                y2: half_size + self.border_size + eight_size,
-                border_size: self.border_size,
-                color: border_color,
-            }));
-            inner_border.push(Shape::Line(Line {
-                x1: offset + self.base_size + half_size + self.border_size * 2 - eight_size,
-                y1: half_size + self.border_size + eight_size,
-                x2: offset + self.base_size + half_size + self.border_size * 2 + eight_size,
-                y2: half_size + self.border_size + eight_size,
-                border_size: self.border_size,
-                color: border_color,
-            }));
-
-            // Central cutout borders
-            inner_border.push(Shape::Line(Line {
-                x1: offset + self.base_size + self.border_size + half_border - eight_size,
-                y1: self.base_size + self.border_size + half_border - eight_size,
-                x2: offset + self.base_size + self.border_size + half_border + eight_size,
-                y2: self.base_size + self.border_size + half_border - eight_size,
-                border_size: self.border_size,
-                color: border_color,
-            }));
-            inner_border.push(Shape::Line(Line {
-                x1: offset + self.base_size + self.border_size + half_border - eight_size,
-                y1: self.base_size + self.border_size + half_border - eight_size,
-                x2: offset + self.base_size + self.border_size + half_border - eight_size,
-                y2: self.base_size + self.border_size + half_border + eight_size,
-                border_size: self.border_size,
-                color: border_color,
-            }));
-            inner_border.push(Shape::Line(Line {
-                x1: offset + self.base_size + self.border_size + half_border - eight_size,
-                y1: self.base_size + self.border_size + half_border + eight_size,
-                x2: offset + self.base_size + self.border_size + half_border + eight_size,
-                y2: self.base_size + self.border_size + half_border + eight_size,
-                border_size: self.border_size,
-                color: border_color,
-            }));
-            inner_border.push(Shape::Line(Line {
-                x1: offset + self.base_size + self.border_size + half_border + eight_size,
-                y1: self.base_size + self.border_size + half_border - eight_size,
-                x2: offset + self.base_size + self.border_size + half_border + eight_size,
-                y2: self.base_size + self.border_size + half_border + eight_size,
-                border_size: self.border_size,
-                color: border_color,
-            }));
-
-            layers.push(inner_border);
+            self.draw_single_swatch(
+                &mut layers,
+                index,
+                offset,
+                &border_color,
+                &eraser,
+                &half_border,
+                &half_size,
+                &quarter_size,
+                &eight_size,
+            );
 
             offset += cell_size - self.border_size;
         }
@@ -354,6 +173,159 @@ impl Picture {
             }
         }
         buffer
+    }
+
+    fn draw_single_swatch(
+        &self,
+        layers: &mut Vec<Vec<Shape>>,
+        index: usize,
+        offset: u32,
+        border_color: &Srgba<u8>,
+        eraser: &Srgba<u8>,
+        half_border: &u32,
+        half_size: &u32,
+        quarter_size: &u32,
+        eight_size: &u32,
+    ) {
+        // Now lets calculate key points in drawing
+        //
+        //             A
+        //           /   \
+        //         /       \
+        //       B     C     D
+        //     /   \       /   \
+        //   /       \   /       \
+        // E     F     G     H     I
+        //   \       /   \       /
+        //     \   /       \   /
+        //       J     K     L
+        //         \       /
+        //           \   /
+        //             M
+
+        let a = Point {
+            x: offset + self.base_size + self.border_size + half_border,
+            y: *half_border,
+        };
+        let b = Point {
+            x: offset + half_size + self.border_size,
+            y: half_size + self.border_size,
+        };
+        let c = Point {
+            x: offset + self.base_size + self.border_size + half_border,
+            y: half_size + self.border_size,
+        };
+        let d = Point {
+            x: offset + self.base_size + half_size + self.border_size * 2,
+            y: half_size + self.border_size,
+        };
+        let e = Point {
+            x: offset + half_border,
+            y: self.base_size + self.border_size + half_border,
+        };
+        let f = Point {
+            x: offset + half_size + self.border_size,
+            y: self.base_size + self.border_size + half_border,
+        };
+        let g = Point {
+            x: offset + self.base_size + self.border_size + half_border,
+            y: self.base_size + self.border_size + half_border,
+        };
+        let h = Point {
+            x: offset + self.base_size + half_size + self.border_size * 2,
+            y: self.base_size + self.border_size + half_border,
+        };
+        let i = Point {
+            x: offset + self.base_size * 2 + self.border_size * 2 + half_border,
+            y: self.base_size + self.border_size + half_border,
+        };
+        let j = Point {
+            x: offset + half_size + self.border_size,
+            y: self.base_size + half_size + self.border_size * 2,
+        };
+        let k = Point {
+            x: offset + self.base_size + self.border_size + half_border,
+            y: self.base_size + half_size + self.border_size * 2,
+        };
+        let l = Point {
+            x: offset + self.base_size + half_size + self.border_size * 2,
+            y: self.base_size + half_size + self.border_size * 2,
+        };
+        let m = Point {
+            x: offset + self.base_size + self.border_size + half_border,
+            y: self.base_size * 2 + self.border_size * 2 + half_border,
+        };
+
+        let scheme = &self.schemes[index];
+        let mut base_colors: Vec<Shape> = Vec::new();
+        // Primary color
+        vertical_square!(base_colors, self.base_size, c, scheme.primary.srgb);
+        // First accent
+        vertical_square!(base_colors, self.base_size, f, scheme.first_accent.srgb);
+        // Second accent
+        vertical_square!(base_colors, self.base_size, h, scheme.second_accent.srgb);
+        // Complementary color
+        vertical_square!(base_colors, self.base_size, k, scheme.complementary.srgb);
+        layers.push(base_colors);
+
+        let mut base_lines: Vec<Shape> = Vec::new();
+        // Cross - left top to right bottom
+        line!(base_lines, b, l, self.border_size, *border_color);
+        // Cross - left bottom to right top
+        line!(base_lines, j, d, self.border_size, *border_color);
+
+        // Border - top left
+        line!(base_lines, e, a, self.border_size, *border_color);
+        // Border - top right
+        line!(base_lines, a, i, self.border_size, *border_color);
+        // Border - bottom right
+        line!(base_lines, i, m, self.border_size, *border_color);
+        // Border - bottom left
+        line!(base_lines, m, e, self.border_size, *border_color);
+        layers.push(base_lines);
+
+        let mut cutouts: Vec<Shape> = Vec::new();
+        // Left top cutout
+        horizontal_square!(cutouts, *quarter_size, b, *eraser);
+        // Right top cutout
+        horizontal_square!(cutouts, *quarter_size, d, *eraser);
+        // Left bottom cutout
+        horizontal_square!(cutouts, *quarter_size, j, *eraser);
+        // Right bottom cutout
+        horizontal_square!(cutouts, *quarter_size, l, *eraser);
+        // Central cutout
+        horizontal_square!(cutouts, *quarter_size, g, *eraser);
+        layers.push(cutouts);
+
+        // Aliases, to fit declarative code in single lines
+        let es = eight_size;
+        let size = self.border_size;
+        let color = border_color;
+
+        let mut lines: Vec<Shape> = Vec::new();
+        // Left top cutout borders
+        line!(lines, b.x + es, b.y - es, b.x + es, b.y + es, size, *color);
+        line!(lines, b.x - es, b.y + es, b.x + es, b.y + es, size, *color);
+
+        // Right top cutout borders
+        line!(lines, d.x - es, d.y - es, d.x - es, d.y + es, size, *color);
+        line!(lines, d.x - es, d.y + es, d.x + es, d.y + es, size, *color);
+
+        // Left bottom cutout borders
+        line!(lines, j.x - es, j.y - es, j.x + es, j.y - es, size, *color);
+        line!(lines, j.x + es, j.y - es, j.x + es, j.y + es, size, *color);
+
+        // Right bottom cutout borders
+        line!(lines, l.x - es, l.y - es, l.x + es, l.y - es, size, *color);
+        line!(lines, l.x - es, l.y - es, l.x - es, l.y + es, size, *color);
+
+        // Central cutout borders
+        line!(lines, g.x - es, g.y - es, g.x + es, g.y - es, size, *color);
+        line!(lines, g.x - es, g.y - es, g.x - es, g.y + es, size, *color);
+        line!(lines, g.x - es, g.y + es, g.x + es, g.y + es, size, *color);
+        line!(lines, g.x + es, g.y - es, g.x + es, g.y + es, size, *color);
+
+        layers.push(lines);
     }
 
     // TODO docs
@@ -379,7 +351,7 @@ impl Picture {
         }
     }
 
-    fn draw_components(
+    fn draw_compound_bar(
         &self,
         widths: Vec<(String, f32)>,
         y_offset: u32,
@@ -830,6 +802,12 @@ fn calculate_widths(components: &Vec<Ingredient>) -> WidthsResult {
         widths: result,
         unestimated_capacity,
     }
+}
+
+#[derive(Debug)]
+struct Point {
+    x: u32,
+    y: u32,
 }
 
 #[derive(Debug)]
