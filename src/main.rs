@@ -1,7 +1,7 @@
 use clap::{arg, command, Parser, Subcommand};
 use clap_verbosity_flag::{Verbosity, WarnLevel};
 use image::{ImageBuffer, Rgba};
-use log::debug;
+use log::{debug, info};
 use moleco::{calculate_scheme, generate_moleco};
 use pretty_env_logger;
 use prettytable::{row, Table};
@@ -39,9 +39,9 @@ enum Commands {
         #[arg(long, default_value = "false")]
         /// Print image to terminal only, without saving.
         print_only: bool,
-        #[arg(long, default_value = "output.png")]
+        #[arg(long, default_value = "moleco.png")]
         /// Output filename.
-        filename: String,
+        output: String,
         #[arg(long, default_value = "1")]
         /// Border size in percent points of base size.
         border_size: u32,
@@ -85,7 +85,7 @@ fn main() {
             base_size,
             print,
             print_only,
-            filename,
+            output,
             border_size,
             skip_minchi_version_check,
         } => {
@@ -102,8 +102,8 @@ fn main() {
                         print_to_terminal(buffer.clone());
                     }
                     if !*print_only {
-                        buffer.save(filename).unwrap();
-                        println!("Image saved as {}", filename);
+                        buffer.save(output).unwrap();
+                        info!("Image saved as {}", output);
                     }
                 }
                 Err(e) => {
