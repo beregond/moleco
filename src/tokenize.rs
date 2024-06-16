@@ -320,7 +320,7 @@ fn split_payload(payload: &str) -> Result<(usize, Concentration, isize), String>
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct Compound {
+pub struct Mixture {
     pub ingredients: Vec<Ingredient>,
     pub content: Option<Content>,
 }
@@ -333,18 +333,18 @@ pub struct Substance {
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum Ingredient {
-    Compound(Compound),
+    Mixture(Mixture),
     Substance(Substance),
 }
 
-pub fn generate_compound_tree(indexing: &str, concentration: &str) -> Compound {
+pub fn generate_mixture_tree(indexing: &str, concentration: &str) -> Mixture {
     let i_tree = tokenize_string(indexing, 'n');
     let c_tree = tokenize_string(concentration, 'g');
     combine_groups(&i_tree, &c_tree)
 }
 
-fn combine_groups(indexing_group: &Group, concentration_group: &Group) -> Compound {
-    Compound {
+fn combine_groups(indexing_group: &Group, concentration_group: &Group) -> Mixture {
+    Mixture {
         ingredients: combine_components(
             &indexing_group.components,
             &concentration_group.components,
@@ -368,7 +368,7 @@ fn combine_components(
                 combined_components.push(Ingredient::Substance(create_substance(t1, t2)));
             }
             (Component::Group(g1), Component::Group(g2)) => {
-                combined_components.push(Ingredient::Compound(combine_groups(g1, g2)));
+                combined_components.push(Ingredient::Mixture(combine_groups(g1, g2)));
             }
             _ => panic!("Mismatched components"),
         }

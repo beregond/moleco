@@ -1,7 +1,7 @@
 pub mod layouts;
 pub mod tokenize;
 use crate::layouts::Picture;
-use crate::tokenize::generate_compound_tree;
+use crate::tokenize::generate_mixture_tree;
 use log::{debug, info};
 use num_bigint::BigUint;
 use num_traits::Zero;
@@ -164,7 +164,7 @@ pub fn generate_for_minchi(
     // Popping concentration, THEN indexing, order is flipped if you start from the end
     let concentration = chunks.pop().unwrap();
     let indexing = chunks.pop().unwrap();
-    let compound_info = Some(generate_compound_tree(indexing, concentration));
+    let mixture_info = Some(generate_mixture_tree(indexing, concentration));
 
     // Drop version chunk
     chunks.remove(0);
@@ -179,7 +179,7 @@ pub fn generate_for_minchi(
         actual_size,
         actual_border_size,
         schemes,
-        compound_info,
+        mixture_info,
     ))
 }
 

@@ -1,6 +1,6 @@
 use moleco::tokenize::{
-    generate_compound_tree, tokenize_string, Component, Compound, Concentration, Content, Group,
-    Ingredient, Substance, Token,
+    generate_mixture_tree, tokenize_string, Component, Concentration, Content, Group, Ingredient,
+    Mixture, Substance, Token,
 };
 
 // source: http://molmatinf.com/minchidemo/
@@ -165,12 +165,12 @@ fn test_tokenization_9() {
     tokenize_string("n{1&2}}&{3&4}", 'n');
 }
 
-fn c(ingredients: Vec<Ingredient>, content: Option<String>) -> Ingredient {
+fn m(ingredients: Vec<Ingredient>, content: Option<String>) -> Ingredient {
     let content = match content {
         Some(c) => Some(Content::from_str(&c).unwrap()),
         None => None,
     };
-    Ingredient::Compound(Compound {
+    Ingredient::Mixture(Mixture {
         ingredients,
         content,
     })
@@ -187,12 +187,12 @@ fn s(index: Option<String>, content: Option<String>) -> Ingredient {
 #[test]
 fn test_tree_1() {
     let (indexing, concentration) = get_formaldehyde_ic();
-    let tree = generate_compound_tree(indexing, concentration);
+    let tree = generate_mixture_tree(indexing, concentration);
     assert_eq!(
         tree,
-        Compound {
+        Mixture {
             ingredients: vec![
-                c(
+                m(
                     vec![
                         s(Some("1".to_string()), Some("37wf-2".to_string())),
                         s(Some("3".to_string()), None)
@@ -209,16 +209,16 @@ fn test_tree_1() {
 #[test]
 fn test_tree_2() {
     let (indexing, concentration) = get_lithium_ic();
-    let tree = generate_compound_tree(indexing, concentration);
+    let tree = generate_mixture_tree(indexing, concentration);
     assert_eq!(
         tree,
-        Compound {
+        Mixture {
             ingredients: vec![
                 s(Some("6".to_string()), Some("1mr0".to_string())),
-                c(
+                m(
                     vec![
                         s(Some("1".to_string()), Some("1vp0".to_string())),
-                        c(
+                        m(
                             vec![
                                 s(Some("3".to_string()), Some("5:7pp1".to_string())),
                                 s(Some("2".to_string()), Some("1:2pp1".to_string())),
@@ -277,15 +277,15 @@ fn test_content_parsing_range_2() {
 }
 
 #[test]
-fn test_compound_tree() {
+fn test_mixture_tree() {
     let (indexing, concentration) = get_liquid_ic();
-    let tree = generate_compound_tree(indexing, concentration);
+    let tree = generate_mixture_tree(indexing, concentration);
     assert_eq!(
         tree,
-        Compound {
+        Mixture {
             ingredients: vec![
                 s(Some("4".to_string()), Some("807wf-3".to_string())),
-                c(
+                m(
                     vec![
                         s(Some("2".to_string()), Some("6pp1".to_string())),
                         s(Some("4".to_string()), Some("4pp1".to_string())),
@@ -293,7 +293,7 @@ fn test_compound_tree() {
                     Some("117wf-3".to_string())
                 ),
                 s(None, Some("1wf-2".to_string())),
-                c(
+                m(
                     vec![
                         s(Some("1".to_string()), Some("27pp0".to_string())),
                         s(Some("4".to_string()), Some("73pp0".to_string())),

@@ -1,4 +1,4 @@
-use crate::tokenize::{Capacity, Compound, Concentration, Content, Ingredient};
+use crate::tokenize::{Capacity, Concentration, Content, Ingredient, Mixture};
 use crate::Scheme;
 use image::{ImageBuffer, Rgba};
 use log::debug;
@@ -62,7 +62,7 @@ pub struct Picture {
     border_size: u32,
     schemes: Vec<Scheme>,
     // Indexing and concentration information combined into tree
-    compound_info: Option<Compound>,
+    mixture_info: Option<Mixture>,
 }
 
 impl Picture {
@@ -70,13 +70,13 @@ impl Picture {
         base_size: u32,
         border_size: u32,
         schemes: Vec<Scheme>,
-        compound_info: Option<Compound>,
+        mixture_info: Option<Mixture>,
     ) -> Self {
         Self {
             base_size,
             border_size,
             schemes,
-            compound_info,
+            mixture_info,
         }
     }
 
@@ -94,38 +94,38 @@ impl Picture {
         let quarter_size = (half_size - 1) / 2;
         let eight_size = (quarter_size - 1) / 2;
 
-        // Height is calculated based on the presence of compound information.
-        let height = match &self.compound_info.is_some() {
+        // Height is calculated based on the presence of mixture information.
+        let height = match &self.mixture_info.is_some() {
             true => cell_size + half_size,
             false => cell_size,
         };
 
-        // Layers and ordering initializatin. If no compound information is present
+        // Layers and ordering initializatin. If no mixture information is present
         // layers are empty and ordering is just a sequence of indices.
         // Altering ordering is neat trick to improve readability of the generated image. See
         // readme for details.
         let mut layers: Vec<Vec<Shape>> = Vec::new();
         let ordering;
 
-        // Lots of details (like ordering) depending on the presence of compound information,
-        // that's why all work is started from drawing the compound bar first.
-        match &self.compound_info {
-            Some(compound) => {
-                let widths = calculate_widths(&compound.ingredients);
-                debug!("Compound basic widths: {:?}", widths.widths);
+        // Lots of details (like ordering) depending on the presence of mixture information,
+        // that's why all work is started from drawing the mixture bar first.
+        match &self.mixture_info {
+            Some(mixture) => {
+                let widths = calculate_widths(&mixture.ingredients);
+                debug!("Mixture basic widths: {:?}", widths.widths);
 
                 let ordered_widths = calculate_ordered_widths(&self.schemes, widths);
-                debug!("Compound ordered widths: {:?}", ordered_widths);
+                debug!("Mixture ordered widths: {:?}", ordered_widths);
 
                 ordering = self.calculate_ordered_indices(Some(&ordered_widths));
-                debug!("Compound ordering: {:?}", ordering);
+                debug!("Mixture ordering: {:?}", ordering);
 
                 let mut bar_layers: Vec<Shape> = Vec::new();
                 let mut line_layers: Vec<Shape> = Vec::new();
 
                 // Offset and width gets '-1' because from this time we are working on the actual pixels,
                 // which are indexed from 0.
-                self.draw_compound_bar(
+                self.draw_mixture_bar(
                     ordered_widths,
                     cell_size + quarter_size - 1,
                     0,
@@ -351,7 +351,7 @@ impl Picture {
         }
     }
 
-    fn draw_compound_bar(
+    fn draw_mixture_bar(
         &self,
         widths: Vec<(String, f32)>,
         y_offset: u32,
@@ -399,7 +399,7 @@ impl Picture {
 
         let ln_sizes = sizes.iter().map(|s| s.ln()).collect::<Vec<f32>>();
 
-        debug!("Compound sizes after logarithm: {:?}", ln_sizes);
+        debug!("Mixture sizes after logarithm: {:?}", ln_sizes);
 
         let ln_sum = ln_sizes.iter().sum::<f32>();
 
@@ -431,7 +431,7 @@ impl Picture {
             }
         }
 
-        debug!("Compound actual sizes: {:?}", actual_sizes);
+        debug!("Mixture actual sizes: {:?}", actual_sizes);
 
         line_layers.push(Shape::Line(Line {
             x1: start_x,
@@ -669,7 +669,7 @@ fn calculate_widths(components: &Vec<Ingredient>) -> WidthsResult {
     let mut unknown = 0;
     for component in components {
         match component {
-            Ingredient::Compound(compound) => match &compound.content {
+            Ingredient::Mixture(mixture) => match &mixture.content {
                 Some(content) => {
                     concentrations.push(&content.concentration);
                     magnitudes.push(content.magnitude);
@@ -718,7 +718,7 @@ fn calculate_widths(components: &Vec<Ingredient>) -> WidthsResult {
     let mut values: Vec<usize> = vec![];
     for component in components {
         match component {
-            Ingredient::Compound(compound) => match &compound.content {
+            Ingredient::Mixture(mixture) => match &mixture.content {
                 Some(content) => values.push(content.value_at_magnitude(min_magnitude)),
                 None => {}
             },
@@ -771,13 +771,13 @@ fn calculate_widths(components: &Vec<Ingredient>) -> WidthsResult {
     // Final, recursive calculation of widths for each component.
     for component in components {
         match component {
-            Ingredient::Compound(compound) => {
-                let size = match &compound.content {
+            Ingredient::Mixture(mixture) => {
+                let size = match &mixture.content {
                     Some(content) => content.value_at_magnitude(min_magnitude) as f32,
                     None => default_width,
                 };
                 let size = size / sum;
-                let calculated = calculate_widths(&compound.ingredients);
+                let calculated = calculate_widths(&mixture.ingredients);
                 for (index, width) in calculated.widths {
                     result.push((index, width * size));
                 }

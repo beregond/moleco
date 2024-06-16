@@ -28,7 +28,7 @@ moleco generate "MInChI=0.00.1S/C12H26O4S.Na/c1-2-3-4-5-6-7-8-9-10-11-12-16-17(1
 
 TODO
 
-## How compound bar is calculated
+## How mixture bar is calculated
 
 TODO
 
