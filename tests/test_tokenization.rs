@@ -19,31 +19,27 @@ static DISHWASHING_LIQUID: &str =
     1H3,(H,19,20,21);/q;+1/p-1&ClH.Na/h1H;/q;+1/p-1&H2O/h1H2/n{4&{2&4}&&{1&4}&3}/g{807wf-3&{6pp1&4pp1}\
     117wf-3&1wf-2&{27pp0&73pp0}66wf-3&}";
 
-// TODO: make macros out of these
-fn t(value: &str) -> Component {
-    Component::Token(Token {
-        value: value.to_string(),
-    })
+macro_rules! enum_token {
+    ($value: expr) => {
+        Component::Token(Token {
+            value: $value.to_string(),
+        })
+    };
 }
 
-fn g(components: Vec<Component>, value: Option<String>) -> Group {
-    Group { components, value }
+macro_rules! group {
+    ($components: expr, $value: expr) => {
+        Group {
+            components: $components,
+            value: $value,
+        }
+    };
 }
 
-fn gk(components: Vec<Component>, value: Option<String>) -> Component {
-    Component::Group(Group { components, value })
-}
-
-fn get_formaldehyde_ic() -> (&'static str, &'static str) {
-    return get_ic(&FORMALDEHYDE);
-}
-
-fn get_lithium_ic() -> (&'static str, &'static str) {
-    return get_ic(&LITHIUM_DIISOPROPYLAMIDE_SOLUTION);
-}
-
-fn get_liquid_ic() -> (&'static str, &'static str) {
-    return get_ic(&DISHWASHING_LIQUID);
+macro_rules! enum_group {
+    ($components: expr, $value: expr) => {
+        Component::Group(group!($components, $value))
+    };
 }
 
 fn get_ic(payload: &str) -> (&str, &str) {
@@ -68,13 +64,16 @@ fn test_wrong_first_character() {
 #[test]
 fn test_empty_components_string() {
     let result = tokenize_string("b", 'b');
-    assert_eq!(result, g(vec![t("")], None));
+    assert_eq!(result, group!(vec![enum_token!("")], None));
 }
 
 #[test]
 fn test_tokenization_1() {
     let result = tokenize_string("n1&2", 'n');
-    assert_eq!(result, g(vec![t("1"), t("2")], None));
+    assert_eq!(
+        result,
+        group!(vec![enum_token!("1"), enum_token!("2")], None)
+    );
 }
 
 #[test]
@@ -82,7 +81,14 @@ fn test_tokenization_2() {
     let result = tokenize_string("n1&{2&3}&4", 'n');
     assert_eq!(
         result,
-        g(vec![t("1"), gk(vec![t("2"), t("3")], None), t("4")], None)
+        group!(
+            vec![
+                enum_token!("1"),
+                enum_group!(vec![enum_token!("2"), enum_token!("3")], None),
+                enum_token!("4")
+            ],
+            None
+        )
     );
 }
 
@@ -91,11 +97,18 @@ fn test_tokenization_3() {
     let result = tokenize_string("n1&{2&3&{58&67}}&4", 'n');
     assert_eq!(
         result,
-        g(
+        group!(
             vec![
-                t("1"),
-                gk(vec![t("2"), t("3"), gk(vec![t("58"), t("67")], None)], None),
-                t("4")
+                enum_token!("1"),
+                enum_group!(
+                    vec![
+                        enum_token!("2"),
+                        enum_token!("3"),
+                        enum_group!(vec![enum_token!("58"), enum_token!("67")], None)
+                    ],
+                    None
+                ),
+                enum_token!("4")
             ],
             None
         )
@@ -115,8 +128,15 @@ fn test_tokenization_5() {
     let result = tokenize_string("n1&{2&3&}&4", 'n');
     assert_eq!(
         result,
-        g(
-            vec![t("1"), gk(vec![t("2"), t("3"), t("")], None), t("4")],
+        group!(
+            vec![
+                enum_token!("1"),
+                enum_group!(
+                    vec![enum_token!("2"), enum_token!("3"), enum_token!("")],
+                    None
+                ),
+                enum_token!("4")
+            ],
             None
         )
     );
@@ -127,18 +147,21 @@ fn test_tokenization_6() {
     let result = tokenize_string("n1&{2&3&{58&67}foo}bar&4", 'n');
     assert_eq!(
         result,
-        g(
+        group!(
             vec![
-                t("1"),
-                gk(
+                enum_token!("1"),
+                enum_group!(
                     vec![
-                        t("2"),
-                        t("3"),
-                        gk(vec![t("58"), t("67")], Some("foo".to_string()))
+                        enum_token!("2"),
+                        enum_token!("3"),
+                        enum_group!(
+                            vec![enum_token!("58"), enum_token!("67")],
+                            Some("foo".to_string())
+                        )
                     ],
                     Some("bar".to_string())
                 ),
-                t("4")
+                enum_token!("4")
             ],
             None
         )
@@ -186,7 +209,7 @@ fn s(index: Option<String>, content: Option<String>) -> Ingredient {
 
 #[test]
 fn test_tree_1() {
-    let (indexing, concentration) = get_formaldehyde_ic();
+    let (indexing, concentration) = get_ic(&FORMALDEHYDE);
     let tree = generate_mixture_tree(indexing, concentration);
     assert_eq!(
         tree,
@@ -208,7 +231,7 @@ fn test_tree_1() {
 
 #[test]
 fn test_tree_2() {
-    let (indexing, concentration) = get_lithium_ic();
+    let (indexing, concentration) = get_ic(&LITHIUM_DIISOPROPYLAMIDE_SOLUTION);
     let tree = generate_mixture_tree(indexing, concentration);
     assert_eq!(
         tree,
@@ -278,7 +301,7 @@ fn test_content_parsing_range_2() {
 
 #[test]
 fn test_mixture_tree() {
-    let (indexing, concentration) = get_liquid_ic();
+    let (indexing, concentration) = get_ic(&DISHWASHING_LIQUID);
     let tree = generate_mixture_tree(indexing, concentration);
     assert_eq!(
         tree,

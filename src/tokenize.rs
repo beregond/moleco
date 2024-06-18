@@ -225,13 +225,24 @@ impl Content {
             // TODO: test this
             // It's not like it is impossible to calculate size at higher magnitude,
             // but it makes no sense in this context, so this is defensive check against it.
+            // (The flow will always choose lowest available magnitude to avoid float caltulations,
+            // so this should never be triggered)
             panic!("Calculating size at higher magnitude is blocked");
         } else {
             return self.value * 10usize.pow((self.magnitude - magnitude) as u32);
         }
     }
 
-    /// TODO: Describe this
+    /// Calculate capacity of concenration type at given magnitude.
+    /// This is part of the calculation of value of the content - to avoid float calculations,
+    /// the smallest magnitude is always selected (during rendering of mixture bar), and then the
+    /// capacity (aka max possible value) is calculated at that specific magnitude.
+    ///
+    /// Imagine that you have 35pp0, 15pp0 and 5pp1 - the smallest magnitude is 0, so max capacity for PP
+    /// at magnitude 0 is 100. Combine it with value_at_magnitude and you get 35, 15 and 50 that
+    /// sums up to (maximum capacity) 100.
+    ///
+    /// For 5pp1, 2pp1 and 3pp1 values will be 5, 2 and 3, so they will sum up to 10 (max capacity at magnitude 1).
     pub fn calculate_capacity(concentration: &Concentration, magnitude: &isize) -> Capacity {
         match concentration {
             Concentration::PP | Concentration::MF => {
