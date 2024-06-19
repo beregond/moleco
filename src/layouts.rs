@@ -117,7 +117,7 @@ impl Picture {
                 let ordered_widths = calculate_ordered_widths(&self.schemes, widths);
                 debug!("Mixture ordered widths: {:?}", ordered_widths);
 
-                ordering = self.calculate_ordered_indices(Some(&ordered_widths));
+                ordering = self._calculate_ordered_indices(Some(&ordered_widths));
                 debug!("Mixture ordering: {:?}", ordering);
 
                 let mut bar_layers: Vec<Shape> = Vec::new();
@@ -140,7 +140,7 @@ impl Picture {
                 layers.push(line_layers);
             }
             None => {
-                ordering = self.calculate_ordered_indices(None);
+                ordering = self._calculate_ordered_indices(None);
             }
         };
 
@@ -200,7 +200,7 @@ impl Picture {
         //     \   /       \   /
         //       J     K     L
         //         \       /
-        //           \   /
+        //           X   Y
         //             M
 
         let a = Point {
@@ -254,6 +254,14 @@ impl Picture {
         let m = Point {
             x: offset + self.base_size + self.border_size + half_border,
             y: self.base_size * 2 + self.border_size * 2 + half_border,
+        };
+        let x = Point {
+            x: j.x + (m.x - j.x) * 2 / 3,
+            y: j.y + (m.y - j.y) * 2 / 3,
+        };
+        let y = Point {
+            x: m.x + (l.x - m.x) / 3,
+            y: x.y,
         };
 
         let scheme = &self.schemes[index];
@@ -325,11 +333,19 @@ impl Picture {
         line!(lines, g.x - es, g.y + es, g.x + es, g.y + es, size, *color);
         line!(lines, g.x + es, g.y - es, g.x + es, g.y + es, size, *color);
 
+        // Orientation mark
+        line!(lines, x, y, size, *color);
+
         layers.push(lines);
     }
 
-    // TODO docs
-    fn calculate_ordered_indices(&self, ordered_widths: Option<&Vec<(String, f32)>>) -> Vec<usize> {
+    /// Normalize indices order. During mixture bar calculation indices may be reordered to improve readability.
+    /// This function either parses what was calculated, or in case of no mixture information - returns
+    /// initial order, as passed through the constructor.
+    fn _calculate_ordered_indices(
+        &self,
+        ordered_widths: Option<&Vec<(String, f32)>>,
+    ) -> Vec<usize> {
         match ordered_widths {
             None => {
                 let mut indices: Vec<usize> = Vec::new();

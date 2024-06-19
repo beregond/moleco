@@ -28,7 +28,7 @@ moleco generate "MInChI=0.00.1S/C12H26O4S.Na/c1-2-3-4-5-6-7-8-9-10-11-12-16-17(1
 
 TODO
 
-## How mixture bar is calculated
+## How mixture bar sizes are calculated
 
 TODO
 
@@ -44,17 +44,19 @@ TODO
 
 ## References
 
-https://jcheminf.biomedcentral.com/articles/10.1186/s13321-019-0357-4
+### IhChI and MInChI
 
-http://molmatinf.com/minchidemo/
+  * https://jcheminf.biomedcentral.com/articles/10.1186/s13321-015-0068-4
+  * https://jcheminf.biomedcentral.com/articles/10.1186/s13321-019-0357-4
+  * http://molmatinf.com/minchidemo/
+  * https://github.com/IUPAC/MInChI_demo
 
-https://github.com/IUPAC/MInChI_demo
+### Color spaces
 
-https://paletton.com/
+  * https://paletton.com/
+  * https://ericportis.com/posts/2024/okay-color-spaces/
 
-https://ericportis.com/posts/2024/okay-color-spaces/
-
-https://pubchem.ncbi.nlm.nih.gov/
-
-https://pubchem.ncbi.nlm.nih.gov/docs/compound-vs-substance
+### PubChem resources
+  * https://pubchem.ncbi.nlm.nih.gov/
+  * https://pubchem.ncbi.nlm.nih.gov/docs/compound-vs-substance
 
