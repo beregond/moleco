@@ -693,87 +693,108 @@ fn calculate_widths(components: &Vec<Ingredient>) -> WidthsResult {
             seen_concentrations
         );
     }
-    // TODO Where is check if there is at least one?
-    let concentration = seen_concentrations[0];
 
-    match Content::maximum_viable_magnitude(concentration) {
-        Some(max_level) => {
-            magnitudes.push(max_level);
-        }
-        None => {}
-    }
-
-    let min_magnitude = magnitudes.iter().min().unwrap();
-
-    let mut values: Vec<usize> = vec![];
-    for component in components {
-        match component {
-            Ingredient::Mixture(mixture) => match &mixture.content {
-                Some(content) => values.push(content.value_at_magnitude(min_magnitude)),
-                None => {}
-            },
-            Ingredient::Substance(substance) => match &substance.content {
-                Some(content) => values.push(content.value_at_magnitude(min_magnitude)),
-                None => {}
-            },
-        }
-    }
-    let sum = values.iter().sum::<usize>();
-    let capacity = match Content::calculate_capacity(concentration, min_magnitude) {
-        Capacity::Absolute(capacity) => capacity,
-        Capacity::Relative => sum,
-        Capacity::Unestimated => {
-            // As long as this app is not calculating molar mass/volume - it is always
-            // impossible to actually know proportions of mixture.
-            unestimated_capacity = true;
-            sum
-        }
-    };
-
-    debug!("min_magnitude: {}", min_magnitude);
-    debug!("values: {:?}", values);
-    debug!(
-        "Unknown in series: {}, sum {}, capacity {}",
-        unknown, sum, capacity
-    );
-    let mut default_width = 0f32;
     let mut result: Vec<(String, f32)> = vec![];
-    match (unknown, sum, capacity) {
-        // If taken capacity is more than 100% - every substance without content specified will
-        // be treated as addition with **no representation** in the bar. (Actually its size
-        // will simply be 0).
-        (u, s, c) if u == 0 && s >= c => {}
-        // If all capacity is taken, but there are known substances - that means their amount
-        // is not specified, so lets mark unestimated capacity.
-        (u, s, c) if u > 0 && s >= c => {
-            unestimated_capacity = true;
+    let final_sum: Option<f32>;
+    let mut default_width = 0f32;
+    let mut min_magnitude = &0isize;
+    if seen_concentrations.len() == 1 {
+        let concentration = seen_concentrations[0];
+
+        match Content::maximum_viable_magnitude(concentration) {
+            Some(max_level) => {
+                magnitudes.push(max_level);
+            }
+            None => {}
         }
-        // There is some volume left for known SINGLE substance, lets assign it to that substance.
-        (u, s, c) if u == 1 && s < c => {
-            default_width = (c - s) as f32 / u as f32;
+
+        min_magnitude = magnitudes.iter().min().unwrap();
+
+        let mut values: Vec<usize> = vec![];
+        for component in components {
+            match component {
+                Ingredient::Mixture(mixture) => match &mixture.content {
+                    Some(content) => values.push(content.value_at_magnitude(min_magnitude)),
+                    None => {}
+                },
+                Ingredient::Substance(substance) => match &substance.content {
+                    Some(content) => values.push(content.value_at_magnitude(min_magnitude)),
+                    None => {}
+                },
+            }
         }
-        // There is some unknown substance(s) with known volume OR there are more than one
-        // known substances, lets append unknown substance do the end of the bar as indication.
-        // In case of multiple known substances - let's not try to guess - treat this as not
-        // provided.
-        (u, s, c) if u != 1 && s < c => {
-            result.push(("".to_string(), (c - s) as f32 / s as f32));
+        let sum = values.iter().sum::<usize>();
+        let capacity = match Content::calculate_capacity(concentration, min_magnitude) {
+            Capacity::Absolute(capacity) => capacity,
+            Capacity::Relative => sum,
+            Capacity::Unestimated => {
+                // As long as this app is not calculating molar mass/volume - it is always
+                // impossible to actually know proportions of mixture.
+                unestimated_capacity = true;
+                sum
+            }
+        };
+
+        debug!("min_magnitude: {}", min_magnitude);
+        debug!("values: {:?}", values);
+        debug!(
+            "Unknown in series: {}, sum {}, capacity {}",
+            unknown, sum, capacity
+        );
+        match (unknown, sum, capacity) {
+            // If taken capacity is more than 100% - every substance without content specified will
+            // be treated as addition with **no representation** in the bar. (Actually its size
+            // will simply be 0).
+            (u, s, c) if u == 0 && s >= c => {}
+            // If all capacity is taken, but there are known substances - that means their amount
+            // is not specified, so lets mark unestimated capacity.
+            (u, s, c) if u > 0 && s >= c => {
+                unestimated_capacity = true;
+            }
+            // There is some volume left for known SINGLE substance, lets assign it to that substance.
+            (u, s, c) if u == 1 && s < c => {
+                default_width = (c - s) as f32 / u as f32;
+            }
+            // There is some unknown substance(s) with known volume OR there are more than one
+            // known substances, lets append unknown substance do the end of the bar as indication.
+            // In case of multiple known substances - let's not try to guess - treat this as not
+            // provided.
+            (u, s, c) if u != 1 && s < c => {
+                result.push(("".to_string(), (c - s) as f32 / s as f32));
+            }
+            (_, _, _) => {
+                panic!("Unknown case");
+            }
         }
-        (_, _, _) => {
-            panic!("Unknown case");
-        }
+
+        final_sum = Some(sum as f32);
+    } else {
+        final_sum = None;
+        unestimated_capacity = true;
     }
-    let sum = sum as f32;
 
     // Final, recursive calculation of widths for each component.
+    // There is some magic inside of it regarding final_sum variable:
+    //  - if current group is vector of empty tokens (like {&&&}) - there is no capacity type
+    //    selected. It doesnt matter anyway, since capacity is therefore unestimated and calculations
+    //    dont matter.
+    //  - if such case (as above) happens - all sizes are set to 0, also for child components.
+    //  - in other case sizes are in fact calculated, but to not repeat too code min_magnitude is set
+    //    to zero initially - and **assumption is that for empty group it simply is not used - and in
+    //    other case it is set to proper value.
     for component in components {
         match component {
             Ingredient::Mixture(mixture) => {
-                let size = match &mixture.content {
-                    Some(content) => content.value_at_magnitude(min_magnitude) as f32,
-                    None => default_width,
+                let size = match final_sum {
+                    Some(value) => {
+                        let partial_size = match &mixture.content {
+                            Some(content) => content.value_at_magnitude(min_magnitude) as f32,
+                            None => default_width,
+                        };
+                        partial_size / value
+                    }
+                    None => 0f32,
                 };
-                let size = size / sum;
                 let calculated = calculate_widths(&mixture.ingredients);
                 for (index, width) in calculated.widths {
                     result.push((index, width * size));
@@ -783,15 +804,22 @@ fn calculate_widths(components: &Vec<Ingredient>) -> WidthsResult {
                 }
             }
             Ingredient::Substance(substance) => {
-                let size = match &substance.content {
-                    Some(content) => content.value_at_magnitude(min_magnitude) as f32,
-                    None => default_width,
-                };
                 let index = match &substance.index {
                     Some(index) => index.clone(),
                     None => "".to_string(),
                 };
-                result.push((index, size / sum as f32));
+                match final_sum {
+                    Some(value) => {
+                        let size = match &substance.content {
+                            Some(content) => content.value_at_magnitude(min_magnitude) as f32,
+                            None => default_width,
+                        };
+                        result.push((index, size / value as f32));
+                    }
+                    None => {
+                        result.push((index, 0f32));
+                    }
+                }
             }
         }
     }

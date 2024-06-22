@@ -89,11 +89,15 @@ fn parse_group(iter: &mut Peekable<Chars>) -> Group {
     let mut components = Vec::new();
     let mut current_token = String::new();
 
-    // Case for the empty string
-    if iter.peek().is_none() {
-        components.push(Component::Token(Token {
-            value: "".to_string(),
-        }));
+    match iter.peek() {
+        // None - case for the empty string
+        // Some(&) - case for & in the beginning of the group or payload (e.g. "{&&&)}")
+        Some('&') | None => {
+            components.push(Component::Token(Token {
+                value: "".to_string(),
+            }));
+        }
+        _ => {}
     }
 
     while let Some(&c) = iter.peek() {

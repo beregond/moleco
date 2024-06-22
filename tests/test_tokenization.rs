@@ -188,6 +188,50 @@ fn test_tokenization_9() {
     tokenize_string("n{1&2}}&{3&4}", 'n');
 }
 
+#[test]
+fn test_tokenization_10() {
+    let result = tokenize_string("n{&&&}", 'n');
+    assert_eq!(
+        result,
+        group!(
+            vec![
+                enum_token!(""),
+                enum_token!(""),
+                enum_token!(""),
+                enum_token!(""),
+            ],
+            None
+        )
+    );
+}
+
+#[test]
+fn test_tokenization_11() {
+    let result = tokenize_string(
+        "g{807wf-3&{6pp1&4pp1}117wf-3&1wf-2&{27pp0&73pp0}66wf-3&}",
+        'g',
+    );
+    assert_eq!(
+        result,
+        group!(
+            vec![
+                enum_token!("807wf-3"),
+                enum_group!(
+                    vec![enum_token!("6pp1"), enum_token!("4pp1")],
+                    Some("117wf-3".to_string())
+                ),
+                enum_token!("1wf-2"),
+                enum_group!(
+                    vec![enum_token!("27pp0"), enum_token!("73pp0")],
+                    Some("66wf-3".to_string())
+                ),
+                enum_token!(""),
+            ],
+            None
+        )
+    );
+}
+
 fn m(ingredients: Vec<Ingredient>, content: Option<String>) -> Ingredient {
     let content = match content {
         Some(c) => Some(Content::from_str(&c).unwrap()),
