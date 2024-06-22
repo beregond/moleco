@@ -2,6 +2,8 @@ use clap::{arg, command, Parser, Subcommand};
 use clap_verbosity_flag::{Verbosity, WarnLevel};
 use dialoguer::Confirm;
 use image::{ImageBuffer, Rgba};
+use little_exif::exif_tag::ExifTag;
+use little_exif::metadata::Metadata;
 use log::{debug, info};
 use moleco::{calculate_scheme, generate_moleco};
 use num::integer::gcd;
@@ -139,6 +141,10 @@ fn main() {
                             }
                         }
                         buffer.save(output_file).unwrap();
+                        let image_path = std::path::Path::new(output_file);
+                        let mut metadata = Metadata::new();
+                        metadata.set_tag(ExifTag::ImageDescription(substance.to_string()));
+                        metadata.write_to_file(&image_path).unwrap();
                         info!("Image saved as {}", output_file);
                     }
                 }

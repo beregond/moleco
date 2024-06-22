@@ -54,6 +54,10 @@ TODO
 
 TODO
 
+### How to recognize the substance?
+
+It may be challenging to recognize the substance based on the color swatch after some time, so be sure to keep the InChI notation somewhere close if you are using just the swatch. If you have original image file though - original substance will be saved in EXIF metadata.
+
 ## References
 
 ### IhChI and MInChI
