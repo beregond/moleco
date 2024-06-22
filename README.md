@@ -8,7 +8,7 @@ Moleco stands for **mole**cule to **co**lor. It generates unique color swatch fo
 
 That will generate a color swatch for caffeine.
 
-![Caffeine swatch](readme/caffeine.png)
+![caffeine](readme/caffeine.png)
 
 ## Installation
 
@@ -16,13 +16,21 @@ TODO
 
 ## Support for mixtures
 
-Of course in nature there is much more likely to see mixtures instead of single substances, so MInChI is supported as well. You can generate toothpaste:
+Of course in nature there is much more likely to see mixtures instead of single substances, so MInChI is supported as well. You can generate *toothpaste*:
 
 ```
 moleco generate "MInChI=0.00.1S/C12H26O4S.Na/c1-2-3-4-5-6-7-8-9-10-11-12-16-17(13,14)15;/h2-12H2,1H3,(H,13,14,15);/q;+1/p-1&C3H8O3/c4-1-3(6)2-5/h3-6H,1-2H2&C7H5NO3S.Na/c9-7-5-3-1-2-4-6(5)12(10,11)8-7;/h1-4H,(H,8,9);/q;+1/p-1&Ca.H3O4P.2H2O/c;1-5(2,3)4;;/h;(H3,1,2,3,4);2*1H2/q+2;;;/p-2&FH2O3P.2Na/c1-5(2,3)4;;/h(H2,2,3,4);;/q;2*+1/p-2&H2O/h1H2/n{6&2&&5&3&4&1}/g{215wf-3&25wf-2&1wf-2&8wf-3&2wf-3&5wf-1&15wf-3}" --print
 ```
 
-![Toothpaste](readme/toothpaste.png)
+![toothpaste](readme/toothpaste.png)
+
+or *dishwashing liquid*:
+```
+cargo run -- generate "MInChI=0.00.1S/C12H26O4S.Na/c1-2-3-4-5-6-7-8-9-10-11-12-16-17(13,14)15;/h2-12H2,1H3,(H,13,14,15);/q;+1/p-1&C18H30O3S.Na/c1-2-3-4-5-6-7-8-9-10-11-12-17-13-15-18(16-14-17)22(19,20)21;/h13-16H,2-12H2,1H3,(H,19,20,21);/q;+1/p-1&ClH.Na/h1H;/q;+1/p-1&H2O/h1H2/n{4&{2&4}&&{1&4}&3}/g{807wf-3&{6pp1&4pp1}117wf-3&1wf-2&{27pp0&73pp0}66wf-3&}" --print
+```
+
+![dishwashing liquid](readme/dishwashingliquid.png)
+
 
 ## Motivation
 

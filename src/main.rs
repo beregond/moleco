@@ -46,6 +46,9 @@ enum Commands {
         #[arg(long, default_value = "moleco.png")]
         /// Output filename.
         output_file: String,
+        #[arg(long, default_value = "false")]
+        /// When output file exists, overwrite it without asking.
+        overwrite: bool,
         #[arg(long, default_value = "1")]
         /// Border size in percent points of base size.
         border_size: u32,
@@ -97,6 +100,7 @@ fn main() {
             print,
             print_only,
             output_file,
+            overwrite,
             border_size,
             skip_version_check,
         } => {
@@ -122,7 +126,7 @@ fn main() {
                         print_to_terminal(buffer.clone());
                     }
                     if !*print_only {
-                        if file_exists(output_file) {
+                        if file_exists(output_file) && !overwrite {
                             if !Confirm::new()
                                 .with_prompt(format!(
                                     "File \"{}\" already exists, overwrite?",
