@@ -46,11 +46,23 @@ moleco generate "MInChI=0.00.1S/C12H17N4OS.ClH/c1-8-11(3-4-17)18-7-16(8)6-10-5-1
 
 ![bechamel sauce](readme/bechamelsauce.png)
 
-## Motivation
-
-TODO
-
 ## How mixture bar sizes are calculated
+
+First of all - values at mixture bar (at the bottom for mixtures) are on **logharitmic** scale. This may be problematic, since if you consider two solutions of ethanol, one 40% and second 70% - its hard to see what is what:
+
+
+![ethanol 40%](readme/ethanolwater4060.png)
+
+![ethanol 70%](readme/ethanolwater7030.png)
+
+But that was not the goal - the goal was to quickly differ between solutions with small amounts of potentially harmful chemicals. Consider again solution of ethanol - one 40% in water, second 40% of ethanol and 0.1% of bitrex (denatonium benzoate) in water.
+
+
+![ethanol 40%](readme/ethanolwater4060.png)
+
+![ethanol 40% with bitrex](readme/ethanolwaterbitrex.png)
+
+## Motivation
 
 TODO
 
@@ -70,7 +82,7 @@ TODO
 
 ### How to recognize the substance?
 
-It may be challenging to recognize the substance based on the color swatch after some time, so be sure to keep the InChI notation somewhere close if you are using just the swatch. If you have original image file though - original substance will be saved in EXIF metadata.
+It may be challenging to recognize the substance based on the color swatch after some time, so be sure to keep the name of substance or InChI notation somewhere close if you are using just the swatch. If you have original image file though - original substance will be saved in EXIF metadata.
 
 ## References
 
