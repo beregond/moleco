@@ -34,6 +34,10 @@ TODO
 
 ## Questions
 
+### Are there collisions?
+
+TODO
+
 ### Why no support for InChIKey?
 
 TODO

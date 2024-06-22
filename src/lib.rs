@@ -51,16 +51,22 @@ pub fn generate_moleco(
     payload: String,
     base_size: u32,
     border_size_percent_points: u32,
-    strict_minchi_version_check: bool,
+    strict_version_check: bool,
 ) -> Result<Picture, String> {
     if payload.starts_with("InChI=") {
+        if !payload.starts_with("InChI=1S/") && strict_version_check {
+            return Err(
+                "Only InChI version 1S is supported for now, you may pass flag to skip it."
+                    .to_string(),
+            );
+        }
         Ok(generate_for_inchi(
             payload,
             base_size,
             border_size_percent_points,
         )?)
     } else if payload.starts_with("MInChI=") {
-        if !payload.starts_with("MInChI=0.00.1S/") && strict_minchi_version_check {
+        if !payload.starts_with("MInChI=0.00.1S/") && strict_version_check {
             return Err(
                 "Only MInChI version 0.00.1S is supported for now, you may pass flag to skip it."
                     .to_string(),
@@ -124,8 +130,7 @@ pub fn calculate_scheme(substance: String) -> Scheme {
     scheme
 }
 
-// TODO double check this function
-fn modulo(divident: &BigUint, divisor: u32) -> u32 {
+pub fn modulo(divident: &BigUint, divisor: u32) -> u32 {
     let rest = divident % BigUint::from(divisor);
     let mut result: u32 = 0;
     // Since rest if always below 360, much below u32::MAX, we can safely convert it this way. I think.
@@ -140,7 +145,7 @@ pub fn generate_for_inchi(
     base_size: u32,
     border_size_percent_points: u32,
 ) -> Result<Picture, String> {
-    let (actual_size, actual_border_size) = _check_sizes(base_size, border_size_percent_points)?;
+    let (actual_size, actual_border_size) = check_sizes(base_size, border_size_percent_points)?;
     let scheme = calculate_scheme(substance);
 
     Ok(Picture::new(
@@ -156,7 +161,7 @@ pub fn generate_for_minchi(
     base_size: u32,
     border_size_percent_points: u32,
 ) -> Result<Picture, String> {
-    let (actual_size, actual_border_size) = _check_sizes(base_size, border_size_percent_points)?;
+    let (actual_size, actual_border_size) = check_sizes(base_size, border_size_percent_points)?;
     let mut chunks: Vec<&str> = substance.split('/').collect();
     if chunks.len() < 4 {
         return Err("MInChI must have at least 4 parts separated by '/'.".to_string());
@@ -183,7 +188,7 @@ pub fn generate_for_minchi(
     ))
 }
 
-fn _check_sizes(base_size: u32, border_size_percent_points: u32) -> Result<(u32, u32), String> {
+fn check_sizes(base_size: u32, border_size_percent_points: u32) -> Result<(u32, u32), String> {
     if base_size < 16 {
         return Err("Base size must be bigger than 16 pixels.".to_string());
     }
