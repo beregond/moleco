@@ -4,7 +4,7 @@ use dialoguer::Confirm;
 use image::{ImageBuffer, Rgba};
 use little_exif::exif_tag::ExifTag;
 use little_exif::metadata::Metadata;
-use log::{debug, info};
+use log::{debug, error, info};
 use moleco::{calculate_scheme, generate_moleco};
 use num::integer::gcd;
 use pretty_env_logger;
@@ -46,7 +46,7 @@ enum Commands {
         /// Print image to terminal only, without saving.
         print_only: bool,
         #[arg(long, default_value = "moleco.png")]
-        /// Output filename.
+        /// Output filename. Only PNG format is supported.
         output_file: String,
         #[arg(long, default_value = "false")]
         /// When output file exists, overwrite it without asking.
@@ -114,6 +114,11 @@ fn main() {
             );
             match picture {
                 Ok(mut picture) => {
+                    if !*print_only && !output_file.ends_with(".png") {
+                        error!("Only PNG format is supported.");
+                        std::process::exit(exitcode::USAGE);
+                    }
+
                     let buffer = picture.generate();
                     let width = buffer.width();
                     let height = buffer.height();
@@ -128,6 +133,10 @@ fn main() {
                         print_to_terminal(buffer.clone());
                     }
                     if !*print_only {
+                        if !output_file.ends_with(".png") {
+                            error!("Only PNG format is supported.");
+                            std::process::exit(exitcode::USAGE);
+                        }
                         if file_exists(output_file) && !overwrite {
                             if !Confirm::new()
                                 .with_prompt(format!(
@@ -149,7 +158,7 @@ fn main() {
                     }
                 }
                 Err(e) => {
-                    eprintln!("{}", e);
+                    error!("{}", e);
                     std::process::exit(exitcode::USAGE);
                 }
             }
@@ -164,7 +173,7 @@ fn main() {
             if let Some(path) = output_file {
                 match format {
                     Format::Table => {
-                        eprintln!("Output file is not supported for table format.");
+                        error!("Output file is not supported for table format.");
                         std::process::exit(exitcode::USAGE);
                     }
                     _ => {}
@@ -185,20 +194,20 @@ fn main() {
             match input_file {
                 Some(path) => {
                     if !file_exists(path) {
-                        eprintln!("File \"{}\" does not exist", path);
+                        error!("File \"{}\" does not exist", path);
                         std::process::exit(exitcode::USAGE);
                     }
 
                     debug!("Reading from file {:?}", path);
 
                     if is_file_empty(path) {
-                        eprintln!("File \"{}\" is empty", path);
+                        error!("File \"{}\" is empty", path);
                         std::process::exit(exitcode::USAGE);
                     }
 
                     let file = std::fs::File::open(path);
                     if file.is_err() {
-                        eprintln!("Error reading file \"{}\"", path);
+                        error!("Error reading file \"{}\"", path);
                         std::process::exit(exitcode::USAGE);
                     }
                     let file = file.unwrap();
@@ -208,7 +217,7 @@ fn main() {
                     for line in reader.lines() {
                         if let Ok(substance) = line {
                             if let Err(message) = writer.write(substance) {
-                                eprintln!("{}", message);
+                                error!("{}", message);
                                 std::process::exit(exitcode::USAGE);
                             }
                         }
@@ -216,13 +225,13 @@ fn main() {
                 }
                 None => {
                     if substances.is_empty() {
-                        eprintln!("No substances provided");
+                        error!("No substances provided");
                         std::process::exit(exitcode::USAGE);
                     } else {
                         debug!("Output generation started");
                         for substance in substances {
                             if let Err(message) = writer.write(substance.clone()) {
-                                eprintln!("{}", message);
+                                error!("{}", message);
                                 std::process::exit(exitcode::USAGE);
                             }
                         }

@@ -52,6 +52,18 @@ macro_rules! line {
     };
 }
 
+macro_rules! line_color {
+    () => {
+        Srgba::from_color(Hsv::new(0.0, 0.0, 0.1)).into_format()
+    };
+}
+
+macro_rules! unknown_color {
+    () => {
+        Srgba::from_color(Hsv::new(0.0, 0.0, 0.8)).into_format()
+    };
+}
+
 struct WidthsResult {
     widths: Vec<(String, f32)>,
     unestimated_capacity: bool,
@@ -81,7 +93,7 @@ impl Picture {
     }
 
     pub fn generate(&mut self) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
-        let border_color: Srgba<u8> = Srgba::from_color(Hsv::new(0.0, 0.0, 0.1)).into_format();
+        let border_color: Srgba<u8> = line_color!();
         let eraser = Srgba::new(0, 0, 0, 0);
         let cell_size = self.base_size * 2 + self.border_size * 3;
         let width = cell_size * self.schemes.len() as u32
@@ -112,6 +124,7 @@ impl Picture {
         match &self.mixture_info {
             Some(mixture) => {
                 let widths = calculate_widths(&mixture.ingredients);
+                let unestimated_capacity = widths.unestimated_capacity;
                 debug!("Mixture basic widths: {:?}", widths.widths);
 
                 let ordered_widths = calculate_ordered_widths(&self.schemes, widths);
@@ -131,7 +144,7 @@ impl Picture {
                     0,
                     width - half_border - 1,
                     quarter_size,
-                    true, //calculated_widths.unestimated_capacity,
+                    unestimated_capacity,
                     &mut bar_layers,
                     &mut line_layers,
                 );
@@ -393,6 +406,9 @@ impl Picture {
                 unknown_substance_present = true;
             }
         }
+        debug!("indices: {:?}", indices);
+        debug!("sizes: {:?}", sizes);
+        debug!("unknown_substance_present: {}", unknown_substance_present);
 
         // Streching sizes so ln values will be bigger than 10
         while sizes
@@ -449,30 +465,42 @@ impl Picture {
 
         debug!("Mixture actual sizes: {:?}", actual_sizes);
 
-        line_layers.push(Shape::Line(Line {
-            x1: start_x,
-            y1: y_offset,
-            x2: end_x,
-            y2: y_offset,
-            border_size: self.border_size,
-            color: Srgba::from_color(Hsv::new(0.0, 0.0, 0.1)).into_format(),
-        }));
-        line_layers.push(Shape::Line(Line {
-            x1: start_x,
-            y1: y_offset,
-            x2: start_x,
-            y2: y_offset + base_bar_size,
-            border_size: self.border_size,
-            color: Srgba::from_color(Hsv::new(0.0, 0.0, 0.1)).into_format(),
-        }));
-        line_layers.push(Shape::Line(Line {
-            x1: start_x,
-            y1: y_offset + base_bar_size,
-            x2: end_x,
-            y2: y_offset + base_bar_size,
-            border_size: self.border_size,
-            color: Srgba::from_color(Hsv::new(0.0, 0.0, 0.1)).into_format(),
-        }));
+        line!(
+            line_layers,
+            start_x,
+            y_offset,
+            end_x,
+            y_offset,
+            self.border_size,
+            line_color!()
+        );
+        line!(
+            line_layers,
+            start_x,
+            y_offset,
+            end_x,
+            y_offset,
+            self.border_size,
+            line_color!()
+        );
+        line!(
+            line_layers,
+            start_x,
+            y_offset,
+            start_x,
+            y_offset + base_bar_size,
+            self.border_size,
+            line_color!()
+        );
+        line!(
+            line_layers,
+            start_x,
+            y_offset + base_bar_size,
+            end_x,
+            y_offset + base_bar_size,
+            self.border_size,
+            line_color!()
+        );
 
         let mut start = start_x;
         let mut end = start_x;
@@ -483,7 +511,7 @@ impl Picture {
 
             let color = match substance_index.parse::<usize>() {
                 Ok(value) => self.schemes[value - 1].primary.srgb.into(),
-                Err(_) => Srgba::from_color(Hsv::new(0.0, 0.0, 0.8)).into_format(),
+                Err(_) => unknown_color!(),
             };
             bar_layers.push(Shape::Rectangle(Rectangle {
                 x: start,
@@ -501,7 +529,7 @@ impl Picture {
                 x2: start,
                 y2: y_offset + base_bar_size,
                 border_size: self.border_size,
-                color: Srgba::from_color(Hsv::new(0.0, 0.0, 0.1)).into_format(),
+                color: line_color!(),
             }));
         }
 
@@ -511,29 +539,11 @@ impl Picture {
             line_layers.pop();
 
             let half_height = (base_bar_size - 1) / 2;
-            let third_height = base_bar_size / 3;
-            let sixth_height = third_height / 2;
-
-            bar_layers.push(Shape::Square(Square {
-                x: end_x,
-                y: y_offset + sixth_height,
-                size: third_height,
-                orientation: Orientation::Vertical,
-                color: Srgba::new(0, 0, 0, 0),
-            }));
 
             bar_layers.push(Shape::Square(Square {
                 x: end_x,
                 y: y_offset + half_height,
-                size: third_height,
-                orientation: Orientation::Vertical,
-                color: Srgba::new(0, 0, 0, 0),
-            }));
-
-            bar_layers.push(Shape::Square(Square {
-                x: end_x,
-                y: y_offset + half_height + third_height,
-                size: third_height,
+                size: base_bar_size,
                 orientation: Orientation::Vertical,
                 color: Srgba::new(0, 0, 0, 0),
             }));
@@ -541,55 +551,19 @@ impl Picture {
             line_layers.push(Shape::Line(Line {
                 x1: end_x,
                 y1: y_offset,
-                x2: end_x - sixth_height,
-                y2: y_offset + sixth_height,
-                border_size: self.border_size,
-                color: Srgba::from_color(Hsv::new(0.0, 0.0, 0.1)).into_format(),
-            }));
-
-            line_layers.push(Shape::Line(Line {
-                x1: end_x - sixth_height,
-                y1: y_offset + sixth_height,
-                x2: end_x,
-                y2: y_offset + third_height,
-                border_size: self.border_size,
-                color: Srgba::from_color(Hsv::new(0.0, 0.0, 0.1)).into_format(),
-            }));
-
-            line_layers.push(Shape::Line(Line {
-                x1: end_x,
-                y1: y_offset + third_height,
-                x2: end_x - sixth_height,
+                x2: end_x - half_height,
                 y2: y_offset + half_height,
                 border_size: self.border_size,
-                color: Srgba::from_color(Hsv::new(0.0, 0.0, 0.1)).into_format(),
+                color: line_color!(),
             }));
 
             line_layers.push(Shape::Line(Line {
-                x1: end_x - sixth_height,
+                x1: end_x - half_height,
                 y1: y_offset + half_height,
-                x2: end_x,
-                y2: y_offset + half_height + sixth_height,
-                border_size: self.border_size,
-                color: Srgba::from_color(Hsv::new(0.0, 0.0, 0.1)).into_format(),
-            }));
-
-            line_layers.push(Shape::Line(Line {
-                x1: end_x,
-                y1: y_offset + half_height + sixth_height,
-                x2: end_x - sixth_height,
-                y2: y_offset + half_height + third_height,
-                border_size: self.border_size,
-                color: Srgba::from_color(Hsv::new(0.0, 0.0, 0.1)).into_format(),
-            }));
-
-            line_layers.push(Shape::Line(Line {
-                x1: end_x - sixth_height,
-                y1: y_offset + half_height + third_height,
                 x2: end_x,
                 y2: y_offset + base_bar_size,
                 border_size: self.border_size,
-                color: Srgba::from_color(Hsv::new(0.0, 0.0, 0.1)).into_format(),
+                color: line_color!(),
             }));
         }
     }
@@ -756,17 +730,24 @@ fn calculate_widths(components: &Vec<Ingredient>) -> WidthsResult {
         }
     };
 
-    debug!("capacity: {}", capacity);
     debug!("min_magnitude: {}", min_magnitude);
     debug!("values: {:?}", values);
-    debug!("sum: {}", sum);
+    debug!(
+        "Unknown in series: {}, sum {}, capacity {}",
+        unknown, sum, capacity
+    );
     let mut default_width = 0f32;
     let mut result: Vec<(String, f32)> = vec![];
     match (unknown, sum, capacity) {
         // If taken capacity is more than 100% - every substance without content specified will
         // be treated as addition with **no representation** in the bar. (Actually its size
         // will simply be 0).
-        (_, s, c) if s >= c => {}
+        (u, s, c) if u == 0 && s >= c => {}
+        // If all capacity is taken, but there are known substances - that means their amount
+        // is not specified, so lets mark unestimated capacity.
+        (u, s, c) if u > 0 && s >= c => {
+            unestimated_capacity = true;
+        }
         // There is some volume left for known SINGLE substance, lets assign it to that substance.
         (u, s, c) if u == 1 && s < c => {
             default_width = (c - s) as f32 / u as f32;
