@@ -25,6 +25,8 @@ pub enum Format {
 #[command(propagate_version = true)]
 struct Cli {
     #[command(subcommand)]
+    
+    
     command: Commands,
     #[command(flatten)]
     verbose: Verbosity<WarnLevel>,
