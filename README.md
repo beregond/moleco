@@ -55,12 +55,16 @@ First of all - values at mixture bar (at the bottom for mixtures) are on **logha
 
 ![ethanol 70%](readme/ethanolwater7030.png)
 
+Not really a difference.
+
 But that was not the goal - the goal was to quickly differ between solutions with small amounts of potentially harmful chemicals. Consider again solution of ethanol - one 40% in water, second 40% of ethanol and 0.1% of bitrex (denatonium benzoate) in water.
 
 
 ![ethanol 40%](readme/ethanolwater4060.png)
 
 ![ethanol 40% with bitrex](readme/ethanolwaterbitrex.png)
+
+Now its easy to make a difference even if there are trace amounts of extra substances.
 
 ## Motivation
 

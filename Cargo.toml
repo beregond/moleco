@@ -1,7 +1,12 @@
 [package]
 name = "moleco"
-version = "0.1.0"
+description = "Tool to generate color swatches for chemical compounds"
+version = "0.0.1"
 edition = "2021"
+authors = ["Szczepan Cieślik <szczepan.cieslik@gmail.com>"]
+readme = "README.md"
+repository = "https://github.com/beregond/moleco/"
+license = "MIT OR Apache-2.0"
 
 [dependencies]
 clap = { version = "4.5.3", features = ["cargo", "derive"] }
