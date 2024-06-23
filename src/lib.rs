@@ -169,11 +169,11 @@ pub fn generate_for_minchi(
     // Popping concentration, THEN indexing, order is flipped if you start from the end
     let concentration = chunks.pop().unwrap();
     let indexing = chunks.pop().unwrap();
-    let mixture_info = Some(generate_mixture_tree(indexing, concentration));
+    let mixture_info = Some(generate_mixture_tree(indexing, concentration)?);
 
     // Drop version chunk
     chunks.remove(0);
-    //let molecules: Vec<&str> = structure.split('&');
+
     let schemes = chunks
         .join("/")
         .split('&')

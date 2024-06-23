@@ -119,7 +119,13 @@ fn main() {
                         std::process::exit(exitcode::USAGE);
                     }
 
-                    let buffer = picture.generate();
+                    let buffer = match picture.generate() {
+                        Ok(buffer) => buffer,
+                        Err(e) => {
+                            error!("{}", e);
+                            std::process::exit(exitcode::USAGE);
+                        }
+                    };
                     let width = buffer.width();
                     let height = buffer.height();
                     info!("Image size: {}x{}", width, height);

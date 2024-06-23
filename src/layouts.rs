@@ -92,7 +92,7 @@ impl Picture {
         }
     }
 
-    pub fn generate(&mut self) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
+    pub fn generate(&mut self) -> Result<ImageBuffer<Rgba<u8>, Vec<u8>>, String> {
         let border_color: Srgba<u8> = line_color!();
         let eraser = Srgba::new(0, 0, 0, 0);
         let cell_size = self.base_size * 2 + self.border_size * 3;
@@ -123,7 +123,7 @@ impl Picture {
         // that's why all work is started from drawing the mixture bar first.
         match &self.mixture_info {
             Some(mixture) => {
-                let widths = calculate_widths(&mixture.ingredients);
+                let widths = calculate_widths(&mixture.ingredients)?;
                 let unestimated_capacity = widths.unestimated_capacity;
                 debug!("Mixture basic widths: {:?}", widths.widths);
 
@@ -185,7 +185,7 @@ impl Picture {
                 }
             }
         }
-        buffer
+        Ok(buffer)
     }
 
     fn draw_single_swatch(
@@ -652,7 +652,7 @@ fn calculate_ordered_widths(
 // TODO test this
 /// Calculate widths of components in the mixture in percent.
 /// Result is denormalized and (un)estimated, so it is just base for later calculations.
-fn calculate_widths(components: &Vec<Ingredient>) -> WidthsResult {
+fn calculate_widths(components: &Vec<Ingredient>) -> Result<WidthsResult, String> {
     let mut unestimated_capacity = false;
     let mut magnitudes: Vec<isize> = vec![];
     let mut concentrations: Vec<&Concentration> = vec![];
@@ -688,10 +688,10 @@ fn calculate_widths(components: &Vec<Ingredient>) -> WidthsResult {
         seen_concentrations.push(concentration);
     }
     if seen_concentrations.len() > 1 {
-        panic!(
-            "Different concentrations in one mixture, only one is allowed - {:?}",
+        return Err(format!(
+            "Different concentrations types in one mixture, only one is allowed - found: {:?}",
             seen_concentrations
-        );
+        ));
     }
 
     let mut result: Vec<(String, f32)> = vec![];
@@ -763,7 +763,7 @@ fn calculate_widths(components: &Vec<Ingredient>) -> WidthsResult {
                 result.push(("".to_string(), (c - s) as f32 / s as f32));
             }
             (_, _, _) => {
-                panic!("Unknown case");
+                unreachable!("Unknown case");
             }
         }
 
@@ -795,7 +795,7 @@ fn calculate_widths(components: &Vec<Ingredient>) -> WidthsResult {
                     }
                     None => 0f32,
                 };
-                let calculated = calculate_widths(&mixture.ingredients);
+                let calculated = calculate_widths(&mixture.ingredients)?;
                 for (index, width) in calculated.widths {
                     result.push((index, width * size));
                 }
@@ -823,10 +823,10 @@ fn calculate_widths(components: &Vec<Ingredient>) -> WidthsResult {
             }
         }
     }
-    WidthsResult {
+    Ok(WidthsResult {
         widths: result,
         unestimated_capacity,
-    }
+    })
 }
 
 #[derive(Debug)]

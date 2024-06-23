@@ -52,24 +52,24 @@ fn get_ic(payload: &str) -> (&str, &str) {
 #[test]
 #[should_panic]
 fn test_empty_string() {
-    tokenize_string("", ' ');
+    tokenize_string("", ' ').unwrap();
 }
 
 #[test]
 #[should_panic]
 fn test_wrong_first_character() {
-    tokenize_string("bbb", 'a');
+    tokenize_string("bbb", 'a').unwrap();
 }
 
 #[test]
 fn test_empty_components_string() {
-    let result = tokenize_string("b", 'b');
+    let result = tokenize_string("b", 'b').unwrap();
     assert_eq!(result, group!(vec![enum_token!("")], None));
 }
 
 #[test]
 fn test_tokenization_1() {
-    let result = tokenize_string("n1&2", 'n');
+    let result = tokenize_string("n1&2", 'n').unwrap();
     assert_eq!(
         result,
         group!(vec![enum_token!("1"), enum_token!("2")], None)
@@ -78,7 +78,7 @@ fn test_tokenization_1() {
 
 #[test]
 fn test_tokenization_2() {
-    let result = tokenize_string("n1&{2&3}&4", 'n');
+    let result = tokenize_string("n1&{2&3}&4", 'n').unwrap();
     assert_eq!(
         result,
         group!(
@@ -94,7 +94,7 @@ fn test_tokenization_2() {
 
 #[test]
 fn test_tokenization_3() {
-    let result = tokenize_string("n1&{2&3&{58&67}}&4", 'n');
+    let result = tokenize_string("n1&{2&3&{58&67}}&4", 'n').unwrap();
     assert_eq!(
         result,
         group!(
@@ -125,7 +125,7 @@ fn test_tokenization_4() {
 
 #[test]
 fn test_tokenization_5() {
-    let result = tokenize_string("n1&{2&3&}&4", 'n');
+    let result = tokenize_string("n1&{2&3&}&4", 'n').unwrap();
     assert_eq!(
         result,
         group!(
@@ -144,7 +144,7 @@ fn test_tokenization_5() {
 
 #[test]
 fn test_tokenization_6() {
-    let result = tokenize_string("n1&{2&3&{58&67}foo}bar&4", 'n');
+    let result = tokenize_string("n1&{2&3&{58&67}foo}bar&4", 'n').unwrap();
     assert_eq!(
         result,
         group!(
@@ -179,18 +179,18 @@ fn test_tokenization_7() {
 #[test]
 #[should_panic]
 fn test_tokenization_8() {
-    tokenize_string("n{1&2}&{3&4", 'n');
+    tokenize_string("n{1&2}&{3&4", 'n').unwrap();
 }
 
 #[test]
 #[should_panic]
 fn test_tokenization_9() {
-    tokenize_string("n{1&2}}&{3&4}", 'n');
+    tokenize_string("n{1&2}}&{3&4}", 'n').unwrap();
 }
 
 #[test]
 fn test_tokenization_10() {
-    let result = tokenize_string("n{&&&}", 'n');
+    let result = tokenize_string("n{&&&}", 'n').unwrap();
     assert_eq!(
         result,
         group!(
@@ -210,7 +210,8 @@ fn test_tokenization_11() {
     let result = tokenize_string(
         "g{807wf-3&{6pp1&4pp1}117wf-3&1wf-2&{27pp0&73pp0}66wf-3&}",
         'g',
-    );
+    )
+    .unwrap();
     assert_eq!(
         result,
         group!(
@@ -254,7 +255,7 @@ fn s(index: Option<String>, content: Option<String>) -> Ingredient {
 #[test]
 fn test_tree_1() {
     let (indexing, concentration) = get_ic(&FORMALDEHYDE);
-    let tree = generate_mixture_tree(indexing, concentration);
+    let tree = generate_mixture_tree(indexing, concentration).unwrap();
     assert_eq!(
         tree,
         Mixture {
@@ -276,7 +277,7 @@ fn test_tree_1() {
 #[test]
 fn test_tree_2() {
     let (indexing, concentration) = get_ic(&LITHIUM_DIISOPROPYLAMIDE_SOLUTION);
-    let tree = generate_mixture_tree(indexing, concentration);
+    let tree = generate_mixture_tree(indexing, concentration).unwrap();
     assert_eq!(
         tree,
         Mixture {
@@ -346,7 +347,7 @@ fn test_content_parsing_range_2() {
 #[test]
 fn test_mixture_tree() {
     let (indexing, concentration) = get_ic(&DISHWASHING_LIQUID);
-    let tree = generate_mixture_tree(indexing, concentration);
+    let tree = generate_mixture_tree(indexing, concentration).unwrap();
     assert_eq!(
         tree,
         Mixture {

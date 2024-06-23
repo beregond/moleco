@@ -18,17 +18,17 @@ pub enum Component {
     Group(Group),
 }
 
-pub fn tokenize_string(input: &str, start: char) -> Group {
+pub fn tokenize_string(input: &str, start: char) -> Result<Group, String> {
     if input.is_empty() {
-        panic!("Empty input");
+        return Err("Empty group passed to tokenization".to_string());
     }
     // Prefix removal
     let mut iter = input.chars();
     if iter.next().unwrap() != start {
-        panic!(
+        return Err(format!(
             "Wrong first character, expected {} in input {}",
             start, input
-        )
+        ));
     }
     let mut new_input: String = iter.collect();
 
@@ -64,7 +64,7 @@ pub fn tokenize_string(input: &str, start: char) -> Group {
             _ => {}
         }
         if level_indicator < 0 {
-            panic!("Unmatching parentheses in input {}", input);
+            return Err(format!("Unmatching parentheses in input {}", input));
         }
         iter.next();
         // Check if first group closed before the end of the payload
@@ -73,7 +73,7 @@ pub fn tokenize_string(input: &str, start: char) -> Group {
         }
     }
     if level_indicator != 0 {
-        panic!("Unmatching parentheses in input {}", input);
+        return Err(format!("Unmatching parentheses in input {}", input));
     }
 
     // Remove the first and last character if they are '{' and '}' and the group is covering the entire payload
@@ -82,7 +82,7 @@ pub fn tokenize_string(input: &str, start: char) -> Group {
     }
 
     let mut iter = new_input.chars().peekable();
-    return parse_group(&mut iter);
+    Ok(parse_group(&mut iter))
 }
 
 fn parse_group(iter: &mut Peekable<Chars>) -> Group {
@@ -213,8 +213,8 @@ pub struct Content {
 }
 
 impl Content {
-    pub fn from_str(payload: &str) -> Result<Self, &str> {
-        let (value, concentration, magnitude) = split_payload(payload).unwrap();
+    pub fn from_str(payload: &str) -> Result<Self, String> {
+        let (value, concentration, magnitude) = split_payload(payload)?;
         Ok(Self {
             value,
             concentration,
@@ -231,7 +231,7 @@ impl Content {
             // but it makes no sense in this context, so this is defensive check against it.
             // (The flow will always choose lowest available magnitude to avoid float caltulations,
             // so this should never be triggered)
-            panic!("Calculating size at higher magnitude is blocked");
+            unreachable!("Calculating size at higher magnitude is blocked");
         } else {
             return self.value * 10usize.pow((self.magnitude - magnitude) as u32);
         }
@@ -251,13 +251,13 @@ impl Content {
         match concentration {
             Concentration::PP | Concentration::MF => {
                 if magnitude > &1isize {
-                    panic!("Magnitude too big");
+                    unreachable!("Magnitude too big");
                 }
                 Capacity::Absolute(10usize.pow(-(magnitude - 2) as u32))
             }
             Concentration::WV | Concentration::WF | Concentration::RF => {
                 if magnitude > &-1isize {
-                    panic!("Magnitude too big");
+                    unreachable!("Magnitude too big");
                 }
                 Capacity::Absolute(10usize.pow(-magnitude as u32))
             }
@@ -307,6 +307,15 @@ fn split_payload(payload: &str) -> Result<(usize, Concentration, isize), String>
     }
 
     let value = match chunks[0] {
+        s if s.starts_with('~') => match s[1..].parse::<usize>() {
+            Ok(v) => v,
+            Err(_) => {
+                return Err(format!(
+                    "Invalid content notation, invalid value - {:?}",
+                    payload
+                ))
+            }
+        },
         s if s.contains(":") => {
             let parts: Vec<&str> = s.split(":").collect();
             if parts.len() != 2 {
@@ -316,9 +325,35 @@ fn split_payload(payload: &str) -> Result<(usize, Concentration, isize), String>
                 ));
             }
 
-            (parts[0].parse::<usize>().unwrap() + parts[1].parse::<usize>().unwrap()) / 2
+            let first = match parts[0].parse::<usize>() {
+                Ok(v) => v,
+                Err(_) => {
+                    return Err(format!(
+                        "Invalid content notation, invalid value - {:?}",
+                        payload
+                    ))
+                }
+            };
+            let second = match parts[1].parse::<usize>() {
+                Ok(v) => v,
+                Err(_) => {
+                    return Err(format!(
+                        "Invalid content notation, invalid value - {:?}",
+                        payload
+                    ))
+                }
+            };
+            (first + second) / 2
         }
-        s => s.parse::<usize>().unwrap(),
+        s => match s.parse::<usize>() {
+            Ok(v) => v,
+            Err(_) => {
+                return Err(format!(
+                    "Invalid content notation, invalid value - {:?}",
+                    payload
+                ))
+            }
+        },
     };
 
     let magnitude = match chunks[1].parse::<isize>() {
@@ -352,54 +387,60 @@ pub enum Ingredient {
     Substance(Substance),
 }
 
-pub fn generate_mixture_tree(indexing: &str, concentration: &str) -> Mixture {
-    let i_tree = tokenize_string(indexing, 'n');
-    let c_tree = tokenize_string(concentration, 'g');
+pub fn generate_mixture_tree(indexing: &str, concentration: &str) -> Result<Mixture, String> {
+    if indexing.is_empty() {
+        return Err("Empty indexing part, you must pass at least \"/n/\"".to_string());
+    }
+    if concentration.is_empty() {
+        return Err("Empty concentration part, you must pass at least \"/g/\"".to_string());
+    }
+    let i_tree = tokenize_string(indexing, 'n')?;
+    let c_tree = tokenize_string(concentration, 'g')?;
     combine_groups(&i_tree, &c_tree)
 }
 
-fn combine_groups(indexing_group: &Group, concentration_group: &Group) -> Mixture {
-    Mixture {
+fn combine_groups(indexing_group: &Group, concentration_group: &Group) -> Result<Mixture, String> {
+    Ok(Mixture {
         ingredients: combine_components(
             &indexing_group.components,
             &concentration_group.components,
-        ),
+        )?,
         content: match &concentration_group.value {
-            Some(v) => Some(Content::from_str(&v).unwrap()),
+            Some(v) => Some(Content::from_str(&v)?),
             None => None,
         },
-    }
+    })
 }
 
 fn combine_components(
     indexing_components: &Vec<Component>,
     concentration_components: &Vec<Component>,
-) -> Vec<Ingredient> {
+) -> Result<Vec<Ingredient>, String> {
     let mut combined_components = Vec::new();
     assert_eq!(indexing_components.len(), concentration_components.len());
     for i in 0..indexing_components.len() {
         match (&indexing_components[i], &concentration_components[i]) {
             (Component::Token(t1), Component::Token(t2)) => {
-                combined_components.push(Ingredient::Substance(create_substance(t1, t2)));
+                combined_components.push(Ingredient::Substance(create_substance(t1, t2)?));
             }
             (Component::Group(g1), Component::Group(g2)) => {
-                combined_components.push(Ingredient::Mixture(combine_groups(g1, g2)));
+                combined_components.push(Ingredient::Mixture(combine_groups(g1, g2)?));
             }
-            _ => panic!("Mismatched components"),
+            _ => return Err(format!("Mismatched components, found mixture and substance on corresponding positions in indexing and concentration notation"))
         }
     }
-    combined_components
+    Ok(combined_components)
 }
 
-fn create_substance(indexing: &Token, concentration: &Token) -> Substance {
-    Substance {
+fn create_substance(indexing: &Token, concentration: &Token) -> Result<Substance, String> {
+    Ok(Substance {
         index: match &indexing.value {
             c if *c == "".to_string() => None,
             _ => Some(indexing.value.clone()),
         },
         content: match concentration.value.clone() {
             c if c == "".to_string() => None,
-            _ => Some(Content::from_str(&concentration.value).unwrap()),
+            _ => Some(Content::from_str(&concentration.value)?),
         },
-    }
+    })
 }
