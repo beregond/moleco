@@ -7,3 +7,7 @@ cargo run -- generate "MInChI=0.00.1S/C12H17N4OS.ClH/c1-8-11(3-4-17)18-7-16(8)6-
 cargo run -- generate "MInChI=0.00.1S/C2H6O/c1-2-3/h3H,2H2,1H3&H2O/h1H2/n{1&2}/g{4vp1&6vp1}" --output-file readme/ethanolwater4060.png --overwrite
 cargo run -- generate "MInChI=0.00.1S/C2H6O/c1-2-3/h3H,2H2,1H3&H2O/h1H2/n{1&2}/g{7vp1&3vp1}" --output-file readme/ethanolwater7030.png --overwrite
 cargo run -- generate "MInChI=0.00.1S/C21H28N2O.C7H6O2/c1-5-23(6-2,15-19-13-8-7-9-14-19)16-20(24)22-21-17(3)11-10-12-18(21)4;8-7(9)6-4-2-1-3-5-6/h7-14H,5-6,15-16H2,1-4H3;1-5H,(H,8,9) &C2H6O/c1-2-3/h3H,2H2,1H3&H2O/h1H2/n{2&3&1}/g{4vp2&599vp0&1vp0}" --output-file readme/ethanolwaterbitrex.png --overwrite
+cargo run -- generate "MInChI=0.00.1S/CH2O/c1-2/h1H2&H2O/h1H2/n{1&2}/g{37wf-2&}" --output-file readme/formaldehydewater.png --overwrite
+cargo run -- generate "MInChI=0.00.1S/CH2O/c1-2/h1H2&CH4O/c1-2/h2H,1H3 &H2O/h1H2/n{1&3&2}/g{37wf-2&&}" --output-file readme/formaldehydemethanolwater.png --overwrite
+cargo run -- generate "MInChI=0.00.1S/CH2O/c1-2/h1H2&H2O/h1H2/n{1&2}/g{37vp0&}" --output-file readme/formaldehydewater2.png --overwrite
+cargo run -- generate "MInChI=0.00.1S/CH2O/c1-2/h1H2&H2O/h1H2/n{1&2}/g{37mb0&63mb0}" --output-file readme/formaldehydewater3.png --overwrite

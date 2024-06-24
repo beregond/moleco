@@ -387,7 +387,7 @@ impl Picture {
         start_x: u32,
         end_x: u32,
         base_bar_size: u32,
-        unestimated_capacity: bool,
+        mut unestimated_capacity: bool,
         bar_layers: &mut Vec<Shape>,
         line_layers: &mut Vec<Shape>,
     ) {
@@ -410,14 +410,18 @@ impl Picture {
         debug!("sizes: {:?}", sizes);
         debug!("unknown_substance_present: {}", unknown_substance_present);
 
-        // Streching sizes so ln values will be bigger than 10
-        while sizes
-            .iter()
-            .min_by(|a, b| a.partial_cmp(b).unwrap())
-            .unwrap()
-            < &10f32
-        {
-            sizes = sizes.iter().map(|s| s * 10f32).collect();
+        if sizes.len() > 0 {
+            // Streching sizes so ln values will be bigger than 10
+            while sizes
+                .iter()
+                .min_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap()
+                < &10f32
+            {
+                sizes = sizes.iter().map(|s| s * 10f32).collect();
+            }
+        } else {
+            unestimated_capacity = true;
         }
 
         // If the capacity is unestimated - we need to have unknown substance present to indicate

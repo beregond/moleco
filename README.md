@@ -66,6 +66,44 @@ But that was not the goal - the goal was to quickly differ between solutions wit
 
 Now its easy to make a difference even if there are trace amounts of extra substances.
 
+### Unknown and unestimated capacity
+
+Sometimes you will not pass all the concentration in mixture, like in this 37% solution of formaldehyde in water:
+
+```
+moleco generate "MInChI=0.00.1S/CH2O/c1-2/h1H2&H2O/h1H2/n{1&2}/g{37wf-2&}" --print
+```
+
+![37% formaldehyde in water](readme/formaldehydewater.png)
+
+It is easy to calculate remaining amount of water (not in molar sense, but since sizes are logarithmic, it does not matter) - it is 63%. But what if there are two solvants like water and methanol without giving their concentrations - then it is possible to estimate remaining amount, but not exact amount of each solvent. In such case the remaining compound is marked as **unknown**.
+
+```
+moleco generate "MInChI=0.00.1S/CH2O/c1-2/h1H2&CH4O/c1-2/h2H,1H3 &H2O/h1H2/n{1&3&2}/g{37wf-2&&}" --print
+```
+
+![37% formaldehyde in water and methanol](readme/formaldehydemethanolwater.png)
+
+Furthermore, if you use **ratio** (`VP`) in notation and you wont pass concentration of **at least one** ingredient, then the remaining amount is marked as **unestimated**.
+
+```
+moleco generate "MInChI=0.00.1S/CH2O/c1-2/h1H2&H2O/h1H2/n{1&2}/g{37vp0&}" --print
+```
+
+![37% formaldehyde in water unestimated](readme/formaldehydewater2.png)
+
+Similar is with molar per liter/kilogram notions - `MB` and `MR` - if you use them **at all** the bar will show extra **unestimated** and **unknown** compound. It is becauce moleco is not calculating molar mass and volumes (it doesn't contain any internal database for substances), so it assumes that there is something extra as the result.
+
+```
+moleco grnerate "MInChI=0.00.1S/CH2O/c1-2/h1H2&H2O/h1H2/n{1&2}/g{37mb0&63mb0}" --print
+```
+
+![37% formaldehyde in water molar](readme/formaldehydewater3.png)
+
+### Extra concentration notation
+
+TODO
+
 ## Motivation
 
 TODO

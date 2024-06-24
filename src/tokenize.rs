@@ -1,21 +1,33 @@
 use std::iter::Peekable;
 use std::str::Chars;
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Group {
     pub components: Vec<Component>,
     pub value: Option<String>,
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Token {
     pub value: String,
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum Component {
     Token(Token),
     Group(Group),
+}
+
+macro_rules! parse_result {
+    ($result:expr, $payload:expr) => {
+        match $result {
+            Ok(v) => Ok(v),
+            Err(_) => Err(format!(
+                "Invalid content notation, invalid value - {:?}",
+                $payload
+            )),
+        }
+    };
 }
 
 pub fn tokenize_string(input: &str, start: char) -> Result<Group, String> {
@@ -307,15 +319,12 @@ fn split_payload(payload: &str) -> Result<(usize, Concentration, isize), String>
     }
 
     let value = match chunks[0] {
-        s if s.starts_with('~') => match s[1..].parse::<usize>() {
-            Ok(v) => v,
-            Err(_) => {
-                return Err(format!(
-                    "Invalid content notation, invalid value - {:?}",
-                    payload
-                ))
-            }
-        },
+        s if s.starts_with("<=") || s.starts_with(">=") => {
+            parse_result!(s[2..].parse::<usize>(), payload)?
+        }
+        s if s.starts_with('~') || s.starts_with('<') || s.starts_with('>') => {
+            parse_result!(s[1..].parse::<usize>(), payload)?
+        }
         s if s.contains(":") => {
             let parts: Vec<&str> = s.split(":").collect();
             if parts.len() != 2 {
@@ -325,46 +334,15 @@ fn split_payload(payload: &str) -> Result<(usize, Concentration, isize), String>
                 ));
             }
 
-            let first = match parts[0].parse::<usize>() {
-                Ok(v) => v,
-                Err(_) => {
-                    return Err(format!(
-                        "Invalid content notation, invalid value - {:?}",
-                        payload
-                    ))
-                }
-            };
-            let second = match parts[1].parse::<usize>() {
-                Ok(v) => v,
-                Err(_) => {
-                    return Err(format!(
-                        "Invalid content notation, invalid value - {:?}",
-                        payload
-                    ))
-                }
-            };
-            (first + second) / 2
+            // To be honest first parsing isnt really needed, but lets validate it anyway
+            // TODO: describe why bigger part it taken only
+            parse_result!(parts[0].parse::<usize>(), payload)?;
+            parse_result!(parts[1].parse::<usize>(), payload)?
         }
-        s => match s.parse::<usize>() {
-            Ok(v) => v,
-            Err(_) => {
-                return Err(format!(
-                    "Invalid content notation, invalid value - {:?}",
-                    payload
-                ))
-            }
-        },
+        s => parse_result!(s.parse::<usize>(), payload)?,
     };
 
-    let magnitude = match chunks[1].parse::<isize>() {
-        Ok(c) => c,
-        Err(_) => {
-            return Err(format!(
-                "Invalid content notation, invalid magnitude - {:?}",
-                payload
-            ))
-        }
-    };
+    let magnitude = parse_result!(chunks[1].parse::<isize>(), payload)?;
 
     Ok((value, concentration, magnitude))
 }
@@ -417,7 +395,21 @@ fn combine_components(
     concentration_components: &Vec<Component>,
 ) -> Result<Vec<Ingredient>, String> {
     let mut combined_components = Vec::new();
-    assert_eq!(indexing_components.len(), concentration_components.len());
+    if indexing_components.len() != concentration_components.len() {
+        return Err(format!(
+            "Mismatched components, found {} and {} items (\"{}\" and \"{}\")",
+            indexing_components.len(),
+            concentration_components.len(),
+            stringify_group(&Group {
+                components: indexing_components.clone(),
+                value: None
+            }),
+            stringify_group(&Group {
+                components: concentration_components.clone(),
+                value: None
+            }),
+        ));
+    }
     for i in 0..indexing_components.len() {
         match (&indexing_components[i], &concentration_components[i]) {
             (Component::Token(t1), Component::Token(t2)) => {
@@ -430,6 +422,28 @@ fn combine_components(
         }
     }
     Ok(combined_components)
+}
+
+fn stringify_group(group: &Group) -> String {
+    let mut result = "{".to_string();
+    let len = group.components.len();
+    let mut i = 1;
+    for component in &group.components {
+        match component {
+            Component::Token(t) => result.push_str(&t.value),
+            Component::Group(g) => result.push_str(&stringify_group(g)),
+        }
+        if i != len {
+            result.push('&');
+        }
+        i += 1;
+    }
+    result.push('}');
+    match &group.value {
+        Some(v) => result.push_str(v),
+        None => {}
+    }
+    result
 }
 
 fn create_substance(indexing: &Token, concentration: &Token) -> Result<Substance, String> {

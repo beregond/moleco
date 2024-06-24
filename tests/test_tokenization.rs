@@ -324,7 +324,7 @@ fn test_content_parsing_range() {
     assert_eq!(
         content,
         Content {
-            value: 6,
+            value: 7,
             concentration: Concentration::WF,
             magnitude: -3,
         }
@@ -337,7 +337,7 @@ fn test_content_parsing_range_2() {
     assert_eq!(
         content,
         Content {
-            value: 3,
+            value: 5,
             concentration: Concentration::PP,
             magnitude: 0,
         }
