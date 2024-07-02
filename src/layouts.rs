@@ -52,16 +52,12 @@ macro_rules! line {
     };
 }
 
-macro_rules! line_color {
-    () => {
-        Srgba::from_color(Hsv::new(0.0, 0.0, 0.1)).into_format()
-    };
+fn line_color() -> Srgba<u8> {
+    Srgba::from_color(Hsv::new(0.0, 0.0, 0.1)).into_format()
 }
 
-macro_rules! unknown_color {
-    () => {
-        Srgba::from_color(Hsv::new(0.0, 0.0, 0.8)).into_format()
-    };
+fn unknown_color() -> Srgba<u8> {
+    Srgba::from_color(Hsv::new(0.0, 0.0, 0.8)).into_format()
 }
 
 struct WidthsResult {
@@ -93,7 +89,7 @@ impl Picture {
     }
 
     pub fn generate(&mut self) -> Result<ImageBuffer<Rgba<u8>, Vec<u8>>, String> {
-        let border_color: Srgba<u8> = line_color!();
+        let border_color = line_color();
         let eraser = Srgba::new(0, 0, 0, 0);
         let cell_size = self.base_size * 2 + self.border_size * 3;
         let width = cell_size * self.schemes.len() as u32
@@ -476,7 +472,7 @@ impl Picture {
             end_x,
             y_offset,
             self.border_size,
-            line_color!()
+            line_color()
         );
         line!(
             line_layers,
@@ -485,7 +481,7 @@ impl Picture {
             end_x,
             y_offset,
             self.border_size,
-            line_color!()
+            line_color()
         );
         line!(
             line_layers,
@@ -494,7 +490,7 @@ impl Picture {
             start_x,
             y_offset + base_bar_size,
             self.border_size,
-            line_color!()
+            line_color()
         );
         line!(
             line_layers,
@@ -503,7 +499,7 @@ impl Picture {
             end_x,
             y_offset + base_bar_size,
             self.border_size,
-            line_color!()
+            line_color()
         );
 
         let mut start = start_x;
@@ -515,7 +511,7 @@ impl Picture {
 
             let color = match substance_index.parse::<usize>() {
                 Ok(value) => self.schemes[value - 1].primary.srgb.into(),
-                Err(_) => unknown_color!(),
+                Err(_) => unknown_color(),
             };
             bar_layers.push(Shape::Rectangle(Rectangle {
                 x: start,
@@ -533,7 +529,7 @@ impl Picture {
                 x2: start,
                 y2: y_offset + base_bar_size,
                 border_size: self.border_size,
-                color: line_color!(),
+                color: line_color(),
             }));
         }
 
@@ -558,7 +554,7 @@ impl Picture {
                 x2: end_x - half_height,
                 y2: y_offset + half_height,
                 border_size: self.border_size,
-                color: line_color!(),
+                color: line_color(),
             }));
 
             line_layers.push(Shape::Line(Line {
@@ -567,7 +563,7 @@ impl Picture {
                 x2: end_x,
                 y2: y_offset + base_bar_size,
                 border_size: self.border_size,
-                color: line_color!(),
+                color: line_color(),
             }));
         }
     }
