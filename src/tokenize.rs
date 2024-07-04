@@ -238,7 +238,6 @@ impl Content {
         if magnitude == &self.magnitude {
             return self.value;
         } else if magnitude > &self.magnitude {
-            // TODO: test this
             // It's not like it is impossible to calculate size at higher magnitude,
             // but it makes no sense in this context, so this is defensive check against it.
             // (The flow will always choose lowest available magnitude to avoid float caltulations,

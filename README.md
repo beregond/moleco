@@ -12,7 +12,10 @@ That will generate a color swatch for caffeine.
 
 ## Installation
 
-TODO
+For now you can only install it with help of [cargo, rust package manager](https://doc.rust-lang.org/cargo/getting-started/installation.html).
+```sh
+cargo install moleco
+```
 
 ## Support for mixtures
 
@@ -100,7 +103,7 @@ moleco grnerate "MInChI=0.00.1S/CH2O/c1-2/h1H2&H2O/h1H2/n{1&2}/g{37mb0&63mb0}" -
 
 ![37% formaldehyde in water molar](readme/formaldehydewater3.png)
 
-### Extra concentration notation
+### Extra concentration notes
 
 TODO
 
@@ -109,6 +112,10 @@ TODO
 TODO
 
 ## Questions
+
+### Why no support for molar mass and volume?
+
+That would require incorporating some database of substances and their properties. This is way above the initial scope of this project, but could be considered in future.
 
 ### Are there collisions?
 
@@ -120,7 +127,9 @@ TODO
 
 ### Why the shape?
 
-TODO
+Diamond divided into four parts was initial idea, usually when creating color swatch you will get 4 or 5 colors, but to have nice complement hue - 4 is easy to generate and diamond shape looks nice. To avoid confusion with [NFPA 704 marking](https://en.wikipedia.org/wiki/NFPA_704) - cutouts were introduced - therefore this "flower" shape.
+
+Orientation mark is introduced as well to not be confused in case if single compound mark.
 
 ### How to recognize the substance?
 

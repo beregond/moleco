@@ -131,6 +131,12 @@ fn test_maximum_viable_magnitude_wv() {
     );
 }
 
+#[test]
+#[should_panic]
+fn test_magnitude_too_big_wv() {
+    Content::from_str("25wv-2").unwrap().value_at_magnitude(&-1);
+}
+
 //--- WF
 
 #[test]
@@ -179,6 +185,12 @@ fn test_maximum_viable_magnitude_wf() {
         Content::maximum_viable_magnitude(&Concentration::WF).unwrap(),
         -1
     );
+}
+
+#[test]
+#[should_panic]
+fn test_magnitude_too_big_wf() {
+    Content::from_str("37wf-3").unwrap().value_at_magnitude(&-2);
 }
 
 //--- RF
@@ -231,6 +243,12 @@ fn test_maximum_viable_magnitude_rf() {
     );
 }
 
+#[test]
+#[should_panic]
+fn test_magnitude_too_big_rf() {
+    Content::from_str("45rf2").unwrap().value_at_magnitude(&3);
+}
+
 //--- MF
 
 #[test]
@@ -274,6 +292,12 @@ fn test_content_capacity_mf_3() {
     Content::calculate_capacity(&Concentration::MF, &2isize);
 }
 
+#[test]
+#[should_panic]
+fn test_magnitude_too_big_mf() {
+    Content::from_str("3mf1").unwrap().value_at_magnitude(&2);
+}
+
 //--- VP
 
 #[test]
@@ -293,6 +317,12 @@ fn test_content_vp_2() {
 #[test]
 fn test_content_capacity_vp_2() {
     assert_relative_capacity!(Content::calculate_capacity(&Concentration::VP, &1isize));
+}
+
+#[test]
+#[should_panic]
+fn test_magnitude_too_big_vp() {
+    Content::from_str("5vp3").unwrap().value_at_magnitude(&4);
 }
 
 //--- MR
@@ -320,6 +350,12 @@ fn test_content_capacity_mr_2() {
     assert_unestimated_capacity!(Content::calculate_capacity(&Concentration::MR, &-3isize));
 }
 
+#[test]
+#[should_panic]
+fn test_magnitude_too_big_mr() {
+    Content::from_str("3mr0").unwrap().value_at_magnitude(&1);
+}
+
 //--- MB
 
 #[test]
@@ -343,4 +379,10 @@ fn test_content_capacity_mb_2() {
     assert_unestimated_capacity!(Content::calculate_capacity(&Concentration::MB, &-1isize));
     assert_unestimated_capacity!(Content::calculate_capacity(&Concentration::MB, &-2isize));
     assert_unestimated_capacity!(Content::calculate_capacity(&Concentration::MB, &-3isize));
+}
+
+#[test]
+#[should_panic]
+fn test_magnitude_too_big_mb() {
+    Content::from_str("3mb0").unwrap().value_at_magnitude(&1);
 }
