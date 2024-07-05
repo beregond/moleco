@@ -75,6 +75,8 @@ Moleco will try to **keep original order** of substances in mixture - the one gi
 
 Good example of such behavior is image of **dishwashing liquid** - if you decipher notation you will see that third substance (sodium chloride) has missing concentration, so it is moved to the end of the bar, behind water swatch.
 
+![dishwashing liquid](readme/dishwashingliquid.png)
+
 ### Unknown and unestimated capacity
 
 Sometimes you will not pass all the concentration in mixture, like in this 37% solution of formaldehyde in water:
