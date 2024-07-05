@@ -262,13 +262,13 @@ impl Content {
         match concentration {
             Concentration::PP | Concentration::MF => {
                 if magnitude > &1isize {
-                    unreachable!("Magnitude too big");
+                    unreachable!("Magnitude too big, you should not calculate capacity at higher magnitude than '1' for PP or MF");
                 }
                 Capacity::Absolute(10usize.pow(-(magnitude - 2) as u32))
             }
             Concentration::WV | Concentration::WF | Concentration::RF => {
                 if magnitude > &-1isize {
-                    unreachable!("Magnitude too big");
+                    unreachable!("Magnitude too big, you should not calculate capacity at higher magnitude than '-1' for WV, WF or RF");
                 }
                 Capacity::Absolute(10usize.pow(-magnitude as u32))
             }
@@ -334,7 +334,6 @@ fn split_payload(payload: &str) -> Result<(usize, Concentration, isize), String>
             }
 
             // To be honest first parsing isnt really needed, but lets validate it anyway
-            // TODO: describe why bigger part it taken only
             parse_result!(parts[0].parse::<usize>(), payload)?;
             parse_result!(parts[1].parse::<usize>(), payload)?
         }

@@ -569,7 +569,6 @@ impl Picture {
     }
 }
 
-// TODO test this?
 fn calculate_ordered_widths(
     schemes: &Vec<Scheme>,
     calculated_widths: WidthsResult,
@@ -649,7 +648,6 @@ fn calculate_ordered_widths(
     ordered_widths
 }
 
-// TODO test this
 /// Calculate widths of components in the mixture in percent.
 /// Result is denormalized and (un)estimated, so it is just base for later calculations.
 fn calculate_widths(components: &Vec<Ingredient>) -> Result<WidthsResult, String> {

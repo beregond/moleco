@@ -69,6 +69,12 @@ But that was not the goal - the goal was to quickly differ between solutions wit
 
 Now its easy to make a difference even if there are trace amounts of extra substances.
 
+### Order of color swatches
+
+Moleco will try to **keep original order** of substances in mixture - the one given in command (MInChi demo (see links below) have specific order for substances). It may happen though that one of substances in middle of notation has missing or unestimated concentration - in such case its swatch **will be moved to the end** of the bar, so primary colors of substances will be visibly matching to bar colors.
+
+Good example of such behavior is image of **dishwashing liquid** - if you decipher notation you will see that third substance (sodium chloride) has missing concentration, so it is moved to the end of the bar, behind water swatch.
+
 ### Unknown and unestimated capacity
 
 Sometimes you will not pass all the concentration in mixture, like in this 37% solution of formaldehyde in water:
@@ -98,14 +104,27 @@ moleco generate "MInChI=0.00.1S/CH2O/c1-2/h1H2&H2O/h1H2/n{1&2}/g{37vp0&}" --prin
 Similar is with molar per liter/kilogram notions - `MB` and `MR` - if you use them **at all** the bar will show extra **unestimated** and **unknown** compound. It is becauce moleco is not calculating molar mass and volumes (it doesn't contain any internal database for substances), so it assumes that there is something extra as the result.
 
 ```
-moleco grnerate "MInChI=0.00.1S/CH2O/c1-2/h1H2&H2O/h1H2/n{1&2}/g{37mb0&63mb0}" --print
+moleco generate "MInChI=0.00.1S/CH2O/c1-2/h1H2&H2O/h1H2/n{1&2}/g{37mb0&63mb0}" --print
 ```
 
 ![37% formaldehyde in water molar](readme/formaldehydewater3.png)
 
 ### Extra concentration notes
 
-TODO
+In case of range notation, like "10:20" only higher amount will be taken into account. This is due to fact that moleco is trying to estimate unknown/unestimated substances and if max possible solution is exceeding potential capacity - it is assumed **user knows what he is doing**. If you want to show extra substance, because you know there is some, you can always add it as separate, unmarked substance. See exambles below - second one is showing extra substance because one extra group is added to indexation and concentration notation.
+```
+moleco generate "MInChI=0.00.1S/C2H6O/c1-2-3/h3H,2H2,1H3&H2O/h1H2/n{1&2}/g{4vp1&6vp1}" --print-only
+```
+vs 
+```
+moleco generate "MInChI=0.00.1S/C2H6O/c1-2-3/h3H,2H2,1H3&H2O/h1H2/n{1&2&}/g{4vp1&6vp1&}" --print-only
+```
+
+results look like
+
+
+![37% formaldehyde in water](readme/ethanolwater4060.png)
+![37% formaldehyde in water open bar](readme/ethanolwater4060open.png)
 
 ## Motivation
 
