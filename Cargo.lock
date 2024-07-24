@@ -700,7 +700,7 @@ dependencies = [
 
 [[package]]
 name = "moleco"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "clap",
  "clap-verbosity-flag",

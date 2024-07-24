@@ -2,7 +2,7 @@ pub mod layouts;
 pub mod tokenize;
 use crate::layouts::Picture;
 use crate::tokenize::generate_mixture_tree;
-use log::{debug, info};
+use log::{debug, info, warn};
 use num_bigint::BigUint;
 use num_traits::Zero;
 use palette::{FromColor, Hsv, Srgb};
@@ -86,7 +86,15 @@ pub fn generate_moleco(
 
 pub fn calculate_scheme(substance: String) -> Scheme {
     let substance = match substance {
-        s if s.starts_with("InChI=") => s[6..].to_string(),
+        // TODO Test this!!
+        s if s.starts_with("InChI=") => {
+            if s.contains('/') {
+                s.split('/').skip(1).collect::<Vec<&str>>().join("/")
+            } else {
+                warn!("InChI without '/' separator. Seems like malformed input.");
+                s
+            }
+        }
         s => s,
     };
     info!("Substance: {}", substance);
@@ -95,19 +103,33 @@ pub fn calculate_scheme(substance: String) -> Scheme {
     hasher.update(substance);
     let result = hasher.finalize();
     debug!(" -> Raw hash: {:?}", result);
-    let mut sum: BigUint = Zero::zero();
-    for i in result.iter() {
-        sum <<= 8;
-        let step = i.clone() as u64;
-        sum += step;
-    }
-    info!(" -> Substance hash: {}", sum);
+    let mut sums = [
+        BigUint::zero(),
+        BigUint::zero(),
+        BigUint::zero(),
+        BigUint::zero(),
+    ];
 
-    let primary_hue = modulo(&sum, 360);
-    let complementary_hue = primary_hue + 165 + modulo(&sum, 30);
-    let first_accent_hue = primary_hue + modulo(&sum, (complementary_hue - 5) - (primary_hue + 5));
+    // Summing up parts of the hash to get 4 random numbers
+    for part in 0..4 {
+        for i in 0..16 {
+            sums[part] <<= 8;
+            let step = result[part * 16 + i] as u32;
+            sums[part] += step;
+        }
+    }
+
+    info!(
+        " -> Substance hashes: {}, {}, {}, {}",
+        sums[0], sums[1], sums[2], sums[3]
+    );
+
+    let primary_hue = modulo(&sums[0], 360);
+    let complementary_hue = primary_hue + 165 + modulo(&sums[1], 30);
+    let first_accent_hue =
+        primary_hue + modulo(&sums[2], (complementary_hue - 5) - (primary_hue + 5));
     let second_accent_hue =
-        complementary_hue + modulo(&sum, (primary_hue + 355) - (complementary_hue + 5));
+        complementary_hue + modulo(&sums[3], (primary_hue + 355) - (complementary_hue + 5));
 
     // Normalization of hues, as they can go over 360
     let complementary_hue = complementary_hue % 360;

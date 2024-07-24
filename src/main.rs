@@ -7,7 +7,6 @@ use little_exif::metadata::Metadata;
 use log::{debug, error, info};
 use moleco::{calculate_scheme, generate_moleco};
 use num::integer::gcd;
-use pretty_env_logger;
 use prettytable::{row, Table};
 use std::fs;
 use std::io::{BufRead, BufReader};
@@ -108,8 +107,8 @@ fn main() {
         } => {
             let picture = generate_moleco(
                 substance.to_string(),
-                base_size.clone(),
-                border_size.clone(),
+                *base_size,
+                *border_size,
                 !skip_version_check,
             );
             match picture {
@@ -143,23 +142,23 @@ fn main() {
                             error!("Only PNG format is supported.");
                             std::process::exit(exitcode::USAGE);
                         }
-                        if file_exists(output_file) && !overwrite {
-                            if !Confirm::new()
+                        if file_exists(output_file)
+                            && !overwrite
+                            && !Confirm::new()
                                 .with_prompt(format!(
                                     "File \"{}\" already exists, overwrite?",
                                     output_file
                                 ))
                                 .interact()
                                 .unwrap()
-                            {
-                                std::process::exit(exitcode::OK);
-                            }
+                        {
+                            std::process::exit(exitcode::OK);
                         }
                         buffer.save(output_file).unwrap();
                         let image_path = std::path::Path::new(output_file);
                         let mut metadata = Metadata::new();
                         metadata.set_tag(ExifTag::ImageDescription(substance.to_string()));
-                        metadata.write_to_file(&image_path).unwrap();
+                        metadata.write_to_file(image_path).unwrap();
                         info!("Image saved as {}", output_file);
                     }
                 }
@@ -177,26 +176,21 @@ fn main() {
             skip_errors,
         } => {
             if let Some(path) = output_file {
-                match format {
-                    Format::Table => {
-                        error!("Output file is not supported for table format.");
-                        std::process::exit(exitcode::USAGE);
-                    }
-                    _ => {}
+                if let Format::Table = format {
+                    error!("Output file is not supported for table format.");
+                    std::process::exit(exitcode::USAGE);
                 }
 
-                if file_exists(path) {
-                    if !Confirm::new()
+                if file_exists(path)
+                    && !Confirm::new()
                         .with_prompt(format!("File \"{}\" already exists, overwrite?", path))
                         .interact()
                         .unwrap()
-                    {
-                        std::process::exit(exitcode::OK);
-                    }
+                {
+                    std::process::exit(exitcode::OK);
                 }
             }
-            let mut writer =
-                DataWriter::new(format.clone(), output_file.clone(), skip_errors.clone());
+            let mut writer = DataWriter::new(format.clone(), output_file.clone(), *skip_errors);
             match input_file {
                 Some(path) => {
                     if !file_exists(path) {
@@ -283,13 +277,11 @@ impl DataWriter {
 
         if substance.starts_with("InChI=") {
             self.actual_writer.write(substance);
-        } else {
-            if !self.skip_errors {
-                return Err(format!(
+        } else if !self.skip_errors {
+            return Err(format!(
                     "No InChI provided, only payload starting with 'InChI=' is supported for calculation. Error source: {}",
                     substance
                 ));
-            }
         }
         Ok(())
     }
@@ -436,7 +428,7 @@ impl CsvStdoutWriter {
     fn new() -> Self {
         let mut output = csv::Writer::from_writer(std::io::stdout());
         output
-            .write_record(&[
+            .write_record([
                 "Substance",
                 "Primary hue",
                 "First accent hue",
@@ -452,7 +444,7 @@ impl Writer for CsvStdoutWriter {
     fn write(&mut self, substance: String) {
         let palette = calculate_scheme(substance.to_string());
         self.output
-            .write_record(&[
+            .write_record([
                 &substance,
                 &palette.primary.hue.to_string(),
                 &palette.first_accent.hue.to_string(),
@@ -475,7 +467,7 @@ impl CsvFileWriter {
         let file = fs::File::create(path).unwrap();
         let mut output = csv::Writer::from_writer(file);
         output
-            .write_record(&[
+            .write_record([
                 "Substance",
                 "Primary hue",
                 "First accent hue",
@@ -491,7 +483,7 @@ impl Writer for CsvFileWriter {
     fn write(&mut self, substance: String) {
         let palette = calculate_scheme(substance.to_string());
         self.output
-            .write_record(&[
+            .write_record([
                 &substance,
                 &palette.primary.hue.to_string(),
                 &palette.first_accent.hue.to_string(),
