@@ -76,9 +76,9 @@ Now its easy to make a difference even if there are trace amounts of extra subst
 
 ### Order of color swatches
 
-Moleco will try to **keep original order** of substances in mixture - the one given in command (MInChi demo (see links below) have specific order for substances). It may happen though that one of substances in middle of notation has missing or unestimated concentration - in such case its swatch **will be moved to the end** of the bar, so primary colors of substances will be visibly matching to bar colors.
+Order is not guaranteed. Moleco will try to **keep original order** of substances in mixture - the one given in command (MInChi demo (see links below) have specific order for substances). It may happen though that one of substances in middle of notation has missing or unestimated concentration - in such case its swatch **will be moved to the end** of the bar, so **primary colors of substances will be visibly matching to bar colors**.
 
-Good example of such behavior is image of **dishwashing liquid** - if you decipher notation you will see that third substance (sodium chloride) has missing concentration, so it is moved to the end of the bar, behind water swatch.
+Good example of such behavior is image of **dishwashing liquid** - if you decipher notation you will see that third substance (sodium chloride) has missing concentration, so it is moved to the end of the bar, behind water swatch. (You can find full notation in examples above).
 
 ![dishwashing liquid](readme/dishwashingliquid.png)
 
@@ -86,7 +86,7 @@ Good example of such behavior is image of **dishwashing liquid** - if you deciph
 
 Sometimes you will not pass all the concentration in mixture, like in this 37% solution of formaldehyde in water:
 
-```
+```bash
 moleco generate "MInChI=0.00.1S/CH2O/c1-2/h1H2&H2O/h1H2/n{1&2}/g{37wf-2&}" --print
 ```
 
@@ -126,7 +126,7 @@ moleco generate "MInChI=0.00.1S/C2H6O/c1-2-3/h3H,2H2,1H3&H2O/h1H2/n{1&2}/g{4vp1&
 
 vs
 
-```
+```bash
 moleco generate "MInChI=0.00.1S/C2H6O/c1-2-3/h3H,2H2,1H3&H2O/h1H2/n{1&2&}/g{4vp1&6vp1&}" --print-only
 ```
 

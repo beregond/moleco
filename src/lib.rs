@@ -92,7 +92,7 @@ pub fn calculate_scheme(substance: String) -> Scheme {
                 s.split('/').skip(1).collect::<Vec<&str>>().join("/")
             } else {
                 warn!("InChI without '/' separator. Seems like malformed input.");
-                s
+                s[6..].to_string()
             }
         }
         s => s,

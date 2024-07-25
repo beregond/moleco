@@ -17,6 +17,13 @@ fn test_calculate_scheme() {
     assert_eq!(scheme2.first_accent.hue, scheme.first_accent.hue);
     assert_eq!(scheme2.second_accent.hue, scheme.second_accent.hue);
     assert_eq!(scheme2.complementary.hue, scheme.complementary.hue);
+
+    // Test attempt to generate proper scheme with wrong input.
+    let scheme3 = calculate_scheme("InChI=water".to_string());
+    assert_eq!(scheme3.primary.hue, scheme.primary.hue);
+    assert_eq!(scheme3.first_accent.hue, scheme.first_accent.hue);
+    assert_eq!(scheme3.second_accent.hue, scheme.second_accent.hue);
+    assert_eq!(scheme3.complementary.hue, scheme.complementary.hue);
 }
 
 /// Function copied from biguint docs.
