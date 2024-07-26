@@ -137,6 +137,12 @@ results look like
 
 ## Motivation
 
+Idea was to create color code for containers with specific substances, that are easy to distinct:
+
+![Cylinders with technical gases](readme/concept/moleco-cylinders.png)
+
+...and if you change form factor - it is still easy, if you know color codes:
+
 TODO
 
 ## Questions

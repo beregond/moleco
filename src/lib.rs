@@ -2,7 +2,7 @@ pub mod layouts;
 pub mod tokenize;
 use crate::layouts::Picture;
 use crate::tokenize::generate_mixture_tree;
-use log::{debug, info, warn};
+use log::{debug, info};
 use num_bigint::BigUint;
 use num_traits::Zero;
 use palette::{FromColor, Hsv, Srgb};
@@ -84,19 +84,20 @@ pub fn generate_moleco(
     }
 }
 
-pub fn calculate_scheme(substance: String) -> Scheme {
+pub fn calculate_scheme(substance: String) -> Result<Scheme, String> {
     let substance = match substance {
-        // TODO Test this!!
         s if s.starts_with("InChI=") => {
             if s.contains('/') {
                 s.split('/').skip(1).collect::<Vec<&str>>().join("/")
             } else {
-                warn!("InChI without '/' separator. Seems like malformed input.");
-                s[6..].to_string()
+                return Err("InChI without '/' separator. Seems like malformed input.".to_string());
             }
         }
         s => s,
     };
+    if substance.is_empty() {
+        return Err("Empty substance provided".to_string());
+    }
     info!("Substance: {}", substance);
 
     let mut hasher = Sha512::new();
@@ -149,7 +150,7 @@ pub fn calculate_scheme(substance: String) -> Scheme {
         scheme.first_accent.hue,
         scheme.second_accent.hue
     );
-    scheme
+    Ok(scheme)
 }
 
 pub fn modulo(divident: &BigUint, divisor: u32) -> u32 {
@@ -168,7 +169,7 @@ pub fn generate_for_inchi(
     border_size_percent_points: u32,
 ) -> Result<Picture, String> {
     let (actual_size, actual_border_size) = check_sizes(base_size, border_size_percent_points)?;
-    let scheme = calculate_scheme(substance);
+    let scheme = calculate_scheme(substance)?;
 
     Ok(Picture::new(
         actual_size,
@@ -196,11 +197,17 @@ pub fn generate_for_minchi(
     // Drop version chunk
     chunks.remove(0);
 
-    let schemes = chunks
-        .join("/")
-        .split('&')
-        .map(|molecule| calculate_scheme(molecule.to_string()))
-        .collect();
+    let mut schemes: Vec<Scheme> = vec![];
+    for molecule in chunks.join("/").split('&') {
+        if molecule.is_empty() {
+            continue;
+        }
+        schemes.push(calculate_scheme(molecule.to_string())?);
+    }
+
+    if schemes.is_empty() {
+        return Err("No substances provided".to_string());
+    }
 
     Ok(Picture::new(
         actual_size,

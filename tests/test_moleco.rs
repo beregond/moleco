@@ -6,24 +6,37 @@ use num_traits::One;
 /// If values changed, it means the hashing algorithm changed.
 #[test]
 fn test_calculate_scheme() {
-    let scheme = calculate_scheme("water".to_string());
+    let scheme = calculate_scheme("water".to_string()).unwrap();
     assert_eq!(scheme.primary.hue, 133);
     assert_eq!(scheme.first_accent.hue, 163);
     assert_eq!(scheme.second_accent.hue, 16);
     assert_eq!(scheme.complementary.hue, 312);
 
-    let scheme2 = calculate_scheme("InChI=1S/water".to_string());
+    let scheme2 = calculate_scheme("InChI=1S/water".to_string()).unwrap();
     assert_eq!(scheme2.primary.hue, scheme.primary.hue);
     assert_eq!(scheme2.first_accent.hue, scheme.first_accent.hue);
     assert_eq!(scheme2.second_accent.hue, scheme.second_accent.hue);
     assert_eq!(scheme2.complementary.hue, scheme.complementary.hue);
 
-    // Test attempt to generate proper scheme with wrong input.
-    let scheme3 = calculate_scheme("InChI=water".to_string());
+    // Test attempt to generate proper scheme with no version given
+    let scheme3 = calculate_scheme("InChI=/water".to_string()).unwrap();
     assert_eq!(scheme3.primary.hue, scheme.primary.hue);
     assert_eq!(scheme3.first_accent.hue, scheme.first_accent.hue);
     assert_eq!(scheme3.second_accent.hue, scheme.second_accent.hue);
     assert_eq!(scheme3.complementary.hue, scheme.complementary.hue);
+}
+
+/// Test to check if the function errors on input with InChi= prefix but no slash.
+#[test]
+#[should_panic]
+fn test_calculate_wrong_input_1() {
+    calculate_scheme("InChI=water".to_string()).unwrap();
+}
+
+#[test]
+#[should_panic]
+fn test_calculate_wrong_input_2() {
+    calculate_scheme("InChI=1S/".to_string()).unwrap();
 }
 
 /// Function copied from biguint docs.

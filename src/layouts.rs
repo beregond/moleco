@@ -153,6 +153,15 @@ impl Picture {
             }
         };
 
+        // Healthcheck if number of substances to draw is equal to number of schemes.
+        if self.schemes.len() != ordering.len() {
+            return Err(format!(
+            "Number of schemes ({}) is not equal to number of substances to draw ({}), check indexing notation.",
+            self.schemes.len(),
+            ordering.len()
+            ));
+        }
+
         let mut buffer = ImageBuffer::new(width, height);
 
         let mut offset = 0;
@@ -396,7 +405,7 @@ impl Picture {
                 continue;
             }
             indices.push(index.clone());
-            sizes.push(width.clone());
+            sizes.push(*width);
 
             if index == "" {
                 unknown_substance_present = true;
@@ -570,7 +579,7 @@ impl Picture {
 }
 
 fn calculate_ordered_widths(
-    schemes: &Vec<Scheme>,
+    schemes: &[Scheme],
     calculated_widths: WidthsResult,
 ) -> Vec<(String, f32)> {
     let mut sums: HashMap<String, f32> = HashMap::new();
@@ -622,18 +631,16 @@ fn calculate_ordered_widths(
     // Key is not equal index, beware off-by-one error.
     for key in 1..=schemes.len() {
         let str_key = key.to_string();
-        match ordered_widths_map.get(&str_key) {
-            Some(value) => ordered_widths.push((str_key, *value)),
-            None => {}
+        if let Some(value) = ordered_widths_map.get(&str_key) {
+            ordered_widths.push((str_key, *value));
         }
     }
 
     // Same as above.
     for key in 1..=schemes.len() {
         let str_key = key.to_string();
-        match empty_map.get(&str_key) {
-            Some(value) => empty.push((str_key, *value)),
-            None => {}
+        if let Some(value) = empty_map.get(&str_key) {
+            empty.push((str_key, *value));
         }
     }
 

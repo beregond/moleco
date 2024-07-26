@@ -193,60 +193,60 @@ fn test_magnitude_too_big_wf() {
     Content::from_str("37wf-3").unwrap().value_at_magnitude(&-2);
 }
 
-//--- RF
+//--- VF
 
 #[test]
-fn test_content_rf_1() {
-    let content = Content::from_str("42rf-2").unwrap();
+fn test_content_vf_1() {
+    let content = Content::from_str("42vf-2").unwrap();
     assert_eq!(content.value, 42);
-    assert_eq!(content.concentration, Concentration::RF);
+    assert_eq!(content.concentration, Concentration::VF);
     assert_eq!(content.magnitude, -2);
     assert_eq!(content.value_at_magnitude(&-3), 420);
 }
 
 #[test]
-fn test_content_rf_2() {
-    Content::from_str("45rf2").unwrap();
+fn test_content_vf_2() {
+    Content::from_str("45vf2").unwrap();
 }
 
 #[test]
-fn test_content_capacity_rf_2() {
+fn test_content_capacity_vf_2() {
     assert_absolute_capacity!(
-        Content::calculate_capacity(&Concentration::RF, &-1isize),
+        Content::calculate_capacity(&Concentration::VF, &-1isize),
         10
     );
     assert_absolute_capacity!(
-        Content::calculate_capacity(&Concentration::RF, &-2isize),
+        Content::calculate_capacity(&Concentration::VF, &-2isize),
         100
     );
     assert_absolute_capacity!(
-        Content::calculate_capacity(&Concentration::RF, &-3isize),
+        Content::calculate_capacity(&Concentration::VF, &-3isize),
         1000
     );
     assert_absolute_capacity!(
-        Content::calculate_capacity(&Concentration::RF, &-4isize),
+        Content::calculate_capacity(&Concentration::VF, &-4isize),
         10000
     );
 }
 
 #[test]
 #[should_panic]
-fn test_content_capacity_rf_3() {
-    Content::calculate_capacity(&Concentration::RF, &0isize);
+fn test_content_capacity_vf_3() {
+    Content::calculate_capacity(&Concentration::VF, &0isize);
 }
 
 #[test]
-fn test_maximum_viable_magnitude_rf() {
+fn test_maximum_viable_magnitude_vf() {
     assert_eq!(
-        Content::maximum_viable_magnitude(&Concentration::RF).unwrap(),
+        Content::maximum_viable_magnitude(&Concentration::VF).unwrap(),
         -1
     );
 }
 
 #[test]
 #[should_panic]
-fn test_magnitude_too_big_rf() {
-    Content::from_str("45rf2").unwrap().value_at_magnitude(&3);
+fn test_magnitude_too_big_vf() {
+    Content::from_str("45vf2").unwrap().value_at_magnitude(&3);
 }
 
 //--- MF

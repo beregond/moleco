@@ -276,7 +276,7 @@ impl DataWriter {
         }
 
         if substance.starts_with("InChI=") {
-            self.actual_writer.write(substance);
+            self.actual_writer.write(substance)?;
         } else if !self.skip_errors {
             return Err(format!(
                     "No InChI provided, only payload starting with 'InChI=' is supported for calculation. Error source: {}",
@@ -291,7 +291,7 @@ impl DataWriter {
 }
 
 trait Writer {
-    fn write(&mut self, substance: String);
+    fn write(&mut self, substance: String) -> Result<(), String>;
     fn flush(&mut self);
 }
 
@@ -313,8 +313,8 @@ impl TableWriter {
 }
 
 impl Writer for TableWriter {
-    fn write(&mut self, substance: String) {
-        let palette = calculate_scheme(substance.to_string());
+    fn write(&mut self, substance: String) -> Result<(), String> {
+        let palette = calculate_scheme(substance.to_string())?;
         self.table.add_row(row![
             substance,
             palette.primary.hue,
@@ -322,6 +322,7 @@ impl Writer for TableWriter {
             palette.second_accent.hue,
             palette.complementary.hue
         ]);
+        Ok(())
     }
     fn flush(&mut self) {
         self.table.printstd();
@@ -340,8 +341,8 @@ impl JsonWriter {
 }
 
 impl Writer for JsonWriter {
-    fn write(&mut self, substance: String) {
-        let palette = calculate_scheme(substance.to_string());
+    fn write(&mut self, substance: String) -> Result<(), String> {
+        let palette = calculate_scheme(substance.to_string())?;
         let mut sub_json = serde_json::Map::new();
         sub_json.insert("primary".to_string(), palette.primary.hue.into());
         sub_json.insert("first_accent".to_string(), palette.first_accent.hue.into());
@@ -355,6 +356,7 @@ impl Writer for JsonWriter {
         );
         self.doc_root
             .insert(substance.to_string(), serde_json::Value::Object(sub_json));
+        Ok(())
     }
     fn flush(&mut self) {
         match self.path {
@@ -383,8 +385,8 @@ impl YamlWriter {
 }
 
 impl Writer for YamlWriter {
-    fn write(&mut self, substance: String) {
-        let palette = calculate_scheme(substance.to_string());
+    fn write(&mut self, substance: String) -> Result<(), String> {
+        let palette = calculate_scheme(substance.to_string())?;
         let mut sub_yaml = serde_yaml::Mapping::new();
         sub_yaml.insert(
             serde_yaml::Value::String("primary".to_string()),
@@ -406,6 +408,7 @@ impl Writer for YamlWriter {
             serde_yaml::Value::String(substance.to_string()),
             serde_yaml::Value::Mapping(sub_yaml),
         );
+        Ok(())
     }
     fn flush(&mut self) {
         match self.path {
@@ -441,8 +444,8 @@ impl CsvStdoutWriter {
 }
 
 impl Writer for CsvStdoutWriter {
-    fn write(&mut self, substance: String) {
-        let palette = calculate_scheme(substance.to_string());
+    fn write(&mut self, substance: String) -> Result<(), String> {
+        let palette = calculate_scheme(substance.to_string())?;
         self.output
             .write_record([
                 &substance,
@@ -452,6 +455,7 @@ impl Writer for CsvStdoutWriter {
                 &palette.complementary.hue.to_string(),
             ])
             .unwrap();
+        Ok(())
     }
     fn flush(&mut self) {
         self.output.flush().unwrap();
@@ -480,8 +484,8 @@ impl CsvFileWriter {
 }
 
 impl Writer for CsvFileWriter {
-    fn write(&mut self, substance: String) {
-        let palette = calculate_scheme(substance.to_string());
+    fn write(&mut self, substance: String) -> Result<(), String> {
+        let palette = calculate_scheme(substance.to_string())?;
         self.output
             .write_record([
                 &substance,
@@ -491,6 +495,7 @@ impl Writer for CsvFileWriter {
                 &palette.complementary.hue.to_string(),
             ])
             .unwrap();
+        Ok(())
     }
     fn flush(&mut self) {
         self.output.flush().unwrap();

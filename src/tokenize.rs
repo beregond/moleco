@@ -199,7 +199,7 @@ pub enum Concentration {
     /// Weight to total weight ratio (in percent), 37ww-2 equals 37 grams per 100 grams of solution (~37%)
     WF,
     /// Volume to total volume ratio (in percent), 87rf-3 equals 8.7 milliliters per 100 milliliters of solution (~8.7%)
-    RF,
+    VF,
     /// Mole to total mole ratio (in percent), 12mf0 equals 12 moles per 100 moles of solution (~12%)
     MF,
     /// Ratio of two volumes, 37vp0&28vp0 equals 37:28 ratio
@@ -266,7 +266,7 @@ impl Content {
                 }
                 Capacity::Absolute(10usize.pow(-(magnitude - 2) as u32))
             }
-            Concentration::WV | Concentration::WF | Concentration::RF => {
+            Concentration::WV | Concentration::WF | Concentration::VF => {
                 if magnitude > &-1isize {
                     unreachable!("Magnitude too big, you should not calculate capacity at higher magnitude than '-1' for WV, WF or RF");
                 }
@@ -283,7 +283,7 @@ impl Content {
     pub fn maximum_viable_magnitude(concentration: &Concentration) -> Option<isize> {
         match concentration {
             Concentration::PP | Concentration::MF => Some(1),
-            Concentration::WV | Concentration::WF | Concentration::RF => Some(-1),
+            Concentration::WV | Concentration::WF | Concentration::VF => Some(-1),
             Concentration::MR | Concentration::MB => Some(0),
             Concentration::VP => None,
         }
@@ -295,7 +295,7 @@ fn split_payload(payload: &str) -> Result<(usize, Concentration, isize), String>
         s if s.contains("pp") => (Concentration::PP, payload.split("pp")),
         s if s.contains("wf") => (Concentration::WF, payload.split("wf")),
         s if s.contains("wv") => (Concentration::WV, payload.split("wv")),
-        s if s.contains("rf") => (Concentration::RF, payload.split("rf")),
+        s if s.contains("vf") => (Concentration::VF, payload.split("rf")),
         s if s.contains("mf") => (Concentration::MF, payload.split("mf")),
         s if s.contains("vp") => (Concentration::VP, payload.split("vp")),
         s if s.contains("mr") => (Concentration::MR, payload.split("mr")),
@@ -317,15 +317,15 @@ fn split_payload(payload: &str) -> Result<(usize, Concentration, isize), String>
         ));
     }
 
-    let value = match chunks[0] {
-        s if s.starts_with("<=") || s.starts_with(">=") => {
-            parse_result!(s[2..].parse::<usize>(), payload)?
-        }
-        s if s.starts_with('~') || s.starts_with('<') || s.starts_with('>') => {
-            parse_result!(s[1..].parse::<usize>(), payload)?
-        }
-        s if s.contains(":") => {
-            let parts: Vec<&str> = s.split(":").collect();
+    let raw_value = match chunks[0] {
+        s if s.starts_with("<=") || s.starts_with(">=") => s[2..].to_owned(),
+        s if s.starts_with('~') || s.starts_with('<') || s.starts_with('>') => s[1..].to_owned(),
+        s => s.to_owned(),
+    };
+
+    let value = match raw_value {
+        s if s.contains(':') => {
+            let parts: Vec<&str> = s.split(':').collect();
             if parts.len() != 2 {
                 return Err(format!(
                     "Invalid content notation, too many parts - {:?}",
