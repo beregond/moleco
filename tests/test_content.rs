@@ -386,3 +386,11 @@ fn test_content_capacity_mb_2() {
 fn test_magnitude_too_big_mb() {
     Content::from_str("3mb0").unwrap().value_at_magnitude(&1);
 }
+
+// --- Unknown
+
+#[test]
+#[should_panic]
+fn test_unknown_content_1() {
+    Content::from_str("6uk2").unwrap();
+}

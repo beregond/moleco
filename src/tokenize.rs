@@ -295,7 +295,7 @@ fn split_payload(payload: &str) -> Result<(usize, Concentration, isize), String>
         s if s.contains("pp") => (Concentration::PP, payload.split("pp")),
         s if s.contains("wf") => (Concentration::WF, payload.split("wf")),
         s if s.contains("wv") => (Concentration::WV, payload.split("wv")),
-        s if s.contains("vf") => (Concentration::VF, payload.split("rf")),
+        s if s.contains("vf") => (Concentration::VF, payload.split("vf")),
         s if s.contains("mf") => (Concentration::MF, payload.split("mf")),
         s if s.contains("vp") => (Concentration::VP, payload.split("vp")),
         s if s.contains("mr") => (Concentration::MR, payload.split("mr")),
@@ -310,11 +310,20 @@ fn split_payload(payload: &str) -> Result<(usize, Concentration, isize), String>
 
     let chunks: Vec<&str> = split.collect();
 
-    if chunks.len() != 2 {
-        return Err(format!(
-            "Invalid content notation, too many parts - {:?}",
-            payload
-        ));
+    match chunks.len() {
+        len if len > 2 => {
+            return Err(format!(
+                "Invalid content notation, too many parts - {:?}",
+                payload
+            ))
+        }
+        len if len < 2 => {
+            return Err(format!(
+                "Invalid content notation, not enough parts or wrong infix - {:?}",
+                payload
+            ))
+        }
+        _ => {}
     }
 
     let raw_value = match chunks[0] {
