@@ -433,9 +433,40 @@ impl Picture {
         // this. It may happen that unknown substance is already present, but if not - we need to
         // add a bit of space for it.
         if unestimated_capacity && !unknown_substance_present {
-            indices.push("".to_string());
             // Chosen by fair dice roll.
-            sizes.push(4f32);
+            let mut unknown_size = 4f32;
+
+            let partial_ln_sum = sizes.iter().map(|s| s.ln()).sum::<f32>();
+
+            // Loop below ensures, that "unknown size" is big enough, that after summing logarithms
+            // it will give space at least the size of rectangle with width of base_bar_size.
+            // That will ensure that "arrow" indicating unknown substance will have enough space.
+            //
+            // Thats theory, didn't run in actual problem with that arrow, but you never know.
+            // Since following code is dependent on this:
+            // lim(x->inf) ln(x) / (const + ln(x)) -> 1
+            // Then you should never run into problems with this, as long as base_bar_size is
+            // smaller than available_width - and it is, as it is calculated from cell size.
+            //
+            // But just in case.
+            if available_width < base_bar_size {
+                unreachable!(
+                    "Base bar size is bigger than available width, this should never happen."
+                );
+            }
+
+            loop {
+                let ln_size = unknown_size.ln();
+                if ln_size / (partial_ln_sum + ln_size) * available_width as f32
+                    > base_bar_size as f32
+                {
+                    break;
+                }
+                unknown_size += 1f32;
+            }
+
+            indices.push("".to_string());
+            sizes.push(unknown_size);
         }
 
         let ln_sizes = sizes.iter().map(|s| s.ln()).collect::<Vec<f32>>();
@@ -706,11 +737,8 @@ fn calculate_widths(components: &Vec<Ingredient>) -> Result<WidthsResult, String
     if seen_concentrations.len() == 1 {
         let concentration = seen_concentrations[0];
 
-        match Content::maximum_viable_magnitude(concentration) {
-            Some(max_level) => {
-                magnitudes.push(max_level);
-            }
-            None => {}
+        if let Some(max_level) = Content::maximum_viable_magnitude(concentration) {
+            magnitudes.push(max_level);
         }
 
         min_magnitude = magnitudes.iter().min().unwrap();
