@@ -120,7 +120,7 @@ pub fn calculate_scheme(substance: String) -> Result<Scheme, String> {
         }
     }
 
-    info!(
+    debug!(
         " -> Substance hashes: {}, {}, {}, {}",
         sums[0], sums[1], sums[2], sums[3]
     );
@@ -229,12 +229,11 @@ fn check_sizes(base_size: u32, border_size_percent_points: u32) -> Result<(u32, 
     }
     debug!("Calculated border size: {}", actual_border_size);
 
-    let actual_size: u32;
-    if base_size % 2 == 0 {
-        actual_size = base_size + 1;
+    let actual_size = if base_size % 2 == 0 {
+        base_size + 1
     } else {
-        actual_size = base_size;
-    }
+        base_size
+    };
 
     debug!("Calculated base size: {}", actual_size);
 

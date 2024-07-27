@@ -47,17 +47,11 @@ pub fn tokenize_string(input: &str, start: char) -> Result<Group, String> {
     // Check if first and last character is '{' and '}'
     let len = new_input.len();
     let ends_with_paren = match len {
-        l if l > 0 => match new_input.get(len - 1..) {
-            Some("}") => true,
-            _ => false,
-        },
+        l if l > 0 => matches!(new_input.get(len - 1..), Some("}")),
         _ => false,
     };
     let mut iter = new_input.chars().peekable();
-    let starts_with_paren = match iter.peek() {
-        Some(&'{') => true,
-        _ => false,
-    };
+    let starts_with_paren = matches!(iter.peek(), Some(&'{'));
 
     // Check if parentheses are matching
     // Also check if the first group is covering the entire payload (and thus is obsolete)
@@ -234,17 +228,19 @@ impl Content {
         })
     }
 
+    /// Calculate value of the concentration at given magnitude.
     pub fn value_at_magnitude(&self, magnitude: &isize) -> usize {
-        if magnitude == &self.magnitude {
-            return self.value;
-        } else if magnitude > &self.magnitude {
+        if magnitude > &self.magnitude {
             // It's not like it is impossible to calculate size at higher magnitude,
             // but it makes no sense in this context, so this is defensive check against it.
             // (The flow will always choose lowest available magnitude to avoid float caltulations,
             // so this should never be triggered)
             unreachable!("Calculating size at higher magnitude is blocked");
-        } else {
-            return self.value * 10usize.pow((self.magnitude - magnitude) as u32);
+        }
+
+        match magnitude {
+            m if m == &self.magnitude => self.value,
+            _ => self.value * 10usize.pow((self.magnitude - magnitude) as u32),
         }
     }
 
@@ -391,7 +387,7 @@ fn combine_groups(indexing_group: &Group, concentration_group: &Group) -> Result
             &concentration_group.components,
         )?,
         content: match &concentration_group.value {
-            Some(v) => Some(Content::from_str(&v)?),
+            Some(v) => Some(Content::from_str(v)?),
             None => None,
         },
     })
@@ -425,7 +421,7 @@ fn combine_components(
             (Component::Group(g1), Component::Group(g2)) => {
                 combined_components.push(Ingredient::Mixture(combine_groups(g1, g2)?));
             }
-            _ => return Err(format!("Mismatched components, found mixture and substance on corresponding positions in indexing and concentration notation"))
+            _ => return Err("Mismatched components, found mixture and substance on corresponding positions in indexing and concentration notation".to_string())
         }
     }
     Ok(combined_components)
@@ -456,11 +452,11 @@ fn stringify_group(group: &Group) -> String {
 fn create_substance(indexing: &Token, concentration: &Token) -> Result<Substance, String> {
     Ok(Substance {
         index: match &indexing.value {
-            c if *c == "".to_string() => None,
+            c if c.is_empty() => None,
             _ => Some(indexing.value.clone()),
         },
         content: match concentration.value.clone() {
-            c if c == "".to_string() => None,
+            c if c.is_empty() => None,
             _ => Some(Content::from_str(&concentration.value)?),
         },
     })

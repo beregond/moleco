@@ -1,7 +1,7 @@
 use crate::tokenize::{Capacity, Concentration, Content, Ingredient, Mixture};
 use crate::Scheme;
 use image::{ImageBuffer, Rgba};
-use log::debug;
+use log::{debug, trace};
 use palette::{FromColor, Hsv, Srgba};
 use std::collections::HashMap;
 
@@ -121,13 +121,13 @@ impl Picture {
             Some(mixture) => {
                 let widths = calculate_widths(&mixture.ingredients)?;
                 let unestimated_capacity = widths.unestimated_capacity;
-                debug!("Mixture basic widths: {:?}", widths.widths);
+                trace!("Mixture basic widths: {:?}", widths.widths);
 
                 let ordered_widths = calculate_ordered_widths(&self.schemes, widths);
-                debug!("Mixture ordered widths: {:?}", ordered_widths);
+                trace!("Mixture ordered widths: {:?}", ordered_widths);
 
                 ordering = self._calculate_ordered_indices(Some(&ordered_widths));
-                debug!("Mixture ordering: {:?}", ordering);
+                trace!("Mixture ordering: {:?}", ordering);
 
                 let mut bar_layers: Vec<Shape> = Vec::new();
                 let mut line_layers: Vec<Shape> = Vec::new();
@@ -375,9 +375,8 @@ impl Picture {
             Some(value) => {
                 let mut ordered_indices: Vec<usize> = vec![];
                 for (index, _) in value {
-                    match index.parse::<usize>() {
-                        Ok(value) => ordered_indices.push(value - 1),
-                        Err(_) => {}
+                    if let Ok(value) = index.parse::<usize>() {
+                        ordered_indices.push(value - 1);
                     }
                 }
                 ordered_indices
@@ -411,9 +410,12 @@ impl Picture {
                 unknown_substance_present = true;
             }
         }
-        debug!("indices: {:?}", indices);
-        debug!("sizes: {:?}", sizes);
-        debug!("unknown_substance_present: {}", unknown_substance_present);
+        trace!("Indices: {:?}", indices);
+        trace!("Sizes: {:?}", sizes);
+        trace!(
+            "Is unknown substance present: {}",
+            unknown_substance_present
+        );
 
         if sizes.len() > 0 {
             // Streching sizes so ln values will be bigger than 10
@@ -458,7 +460,7 @@ impl Picture {
             loop {
                 let ln_size = unknown_size.ln();
                 if ln_size / (partial_ln_sum + ln_size) * available_width as f32
-                    > base_bar_size as f32
+                    >= base_bar_size as f32
                 {
                     break;
                 }
@@ -471,7 +473,7 @@ impl Picture {
 
         let ln_sizes = sizes.iter().map(|s| s.ln()).collect::<Vec<f32>>();
 
-        debug!("Mixture sizes after logarithm: {:?}", ln_sizes);
+        trace!("Mixture sizes after logarithm: {:?}", ln_sizes);
 
         let ln_sum = ln_sizes.iter().sum::<f32>();
 
@@ -768,11 +770,13 @@ fn calculate_widths(components: &Vec<Ingredient>) -> Result<WidthsResult, String
             }
         };
 
-        debug!("min_magnitude: {}", min_magnitude);
-        debug!("values: {:?}", values);
-        debug!(
+        trace!("Min magnitude: {}", min_magnitude);
+        trace!("Values: {:?}", values);
+        trace!(
             "Unknown in series: {}, sum {}, capacity {}",
-            unknown, sum, capacity
+            unknown,
+            sum,
+            capacity
         );
         match (unknown, sum, capacity) {
             // If taken capacity is more than 100% - every substance without content specified will
@@ -781,9 +785,7 @@ fn calculate_widths(components: &Vec<Ingredient>) -> Result<WidthsResult, String
             (u, s, c) if u == 0 && s >= c => {}
             // If all capacity is taken, but there are known substances - that means their amount
             // is not specified, so lets mark unestimated capacity.
-            (u, s, c) if u > 0 && s >= c => {
-                unestimated_capacity = true;
-            }
+            (u, s, c) if u > 0 && s >= c => unestimated_capacity = true,
             // There is some volume left for known SINGLE substance, lets assign it to that substance.
             (u, s, c) if u == 1 && s < c => {
                 default_width = (c - s) as f32 / u as f32;
@@ -795,9 +797,7 @@ fn calculate_widths(components: &Vec<Ingredient>) -> Result<WidthsResult, String
             (u, s, c) if u != 1 && s < c => {
                 result.push(("".to_string(), (c - s) as f32 / s as f32));
             }
-            (_, _, _) => {
-                unreachable!("Unknown case");
-            }
+            (_, _, _) => unreachable!("Unknown case"),
         }
 
         final_sum = Some(sum as f32);
@@ -908,7 +908,7 @@ impl Square {
 
         let sum = distance_from_y + distance_from_x;
         let line = (self.size - 1) / 2;
-        return sum <= line;
+        sum <= line
     }
 
     // Instead of square being anchored in top left corner, like in 99% of drawing libs, it is

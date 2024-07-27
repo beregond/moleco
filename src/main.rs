@@ -154,7 +154,12 @@ fn main() {
                         {
                             std::process::exit(exitcode::OK);
                         }
-                        buffer.save(output_file).unwrap();
+                        if let Err(e) = buffer.save(output_file) {
+                            error!("Problem writing to file {}", output_file);
+                            error!("{}", e);
+                            std::process::exit(exitcode::USAGE);
+                        }
+
                         let image_path = std::path::Path::new(output_file);
                         let mut metadata = Metadata::new();
                         metadata.set_tag(ExifTag::ImageDescription(substance.to_string()));
