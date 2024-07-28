@@ -66,7 +66,9 @@ Idea was to create color code for containers with specific substances, that are 
 
 ...and if you change form factor - it is still easy, if you know color codes:
 
-TODO
+![Cans with technical gases](readme/concept/moleco-cans.png)
+
+(As you can notice - oxygen and argon have similar swatches - primary and complementary, so you must be careful with those two; such collisions are inevitable, so be creative with design, create patterns and use accents, so you won't introduce confusion).
 
 ## How to generate InChI or MInChI?
 
