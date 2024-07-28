@@ -1,3 +1,5 @@
+![logo](logo.png)
+
 # Moleco
 
 Moleco stands for **mole**cule to **co**lor. It generates unique color swatch for given substance based on its InChI notation. It can also generate color identification for mixture using MInChI notation.
@@ -55,6 +57,20 @@ moleco generate "MInChI=0.00.1S/C12H17N4OS.ClH/c1-8-11(3-4-17)18-7-16(8)6-10-5-1
 ```
 
 ![bechamel sauce](readme/bechamelsauce.png)
+
+## Motivation
+
+Idea was to create color code for containers with specific substances, that are easy to distinct:
+
+![Cylinders with technical gases](readme/concept/moleco-cylinders.png)
+
+...and if you change form factor - it is still easy, if you know color codes:
+
+TODO
+
+## How to generate InChI or MInChI?
+
+For simple substances you can use [PubChem](https://pubchem.ncbi.nlm.nih.gov/), try also searching "substance name IhChI" - you should find it. For mixtures you can use [MInChI demo](http://molmatinf.com/minchidemo/).
 
 ## How mixture bar sizes are calculated
 
@@ -135,16 +151,6 @@ results look like
 ![37% formaldehyde in water](readme/ethanolwater4060.png)
 ![37% formaldehyde in water open bar](readme/ethanolwater4060open.png)
 
-## Motivation
-
-Idea was to create color code for containers with specific substances, that are easy to distinct:
-
-![Cylinders with technical gases](readme/concept/moleco-cylinders.png)
-
-...and if you change form factor - it is still easy, if you know color codes:
-
-TODO
-
 ## Questions
 
 ### Why no support for molar mass and volume?
@@ -171,7 +177,7 @@ It may be challenging to recognize the substance based on the color swatch after
 
 ## References
 
-### IhChI and MInChI
+### InChI and MInChI
 
 * <https://jcheminf.biomedcentral.com/articles/10.1186/s13321-015-0068-4>
 * <https://jcheminf.biomedcentral.com/articles/10.1186/s13321-019-0357-4>
