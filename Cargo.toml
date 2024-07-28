@@ -1,7 +1,7 @@
 [package]
 name = "moleco"
 description = "Tool to generate color swatches for chemical compounds"
-version = "0.0.2"
+version = "0.1.0"
 edition = "2021"
 authors = ["Szczepan Cieślik <szczepan.cieslik@gmail.com>"]
 readme = "README.md"
